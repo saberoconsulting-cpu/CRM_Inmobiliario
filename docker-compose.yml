@@ -1,4 +1,4 @@
-# docker-compose — backend + reverse proxy (Caddy) para Contabo.
+# docker-compose — backend + reverse proxy Nginx para Contabo.
 # El backend (Nest) usa Supabase y Cloudinary. Ningún secreto hardcodeado.
 
 services:
@@ -26,6 +26,7 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME?Defina CLOUDINARY_CLOUD_NAME en .env}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?Define CLOUDINARY_API_KEY en .env}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?Define CLOUDINARY_API_SECRET en .env}
+    # Acceso solo por la red interna de Docker (service name: backend:3001).
     command: >
       sh -c "echo Aplicando migraciones contra Supabase... &&
       node dist/config/bootstrap-migrate.js &&
@@ -33,20 +34,21 @@ services:
       exec node dist/main.js"
 
   # Reverse proxy + TLS (Let's Encrypt) hacia api.saberoconsulting.com
-  caddy:
-    image: caddy:2-alpine
-    container_name: crm_caddy
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: crm_nginx
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
-      - "443:443/udp"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./nginx/site.conf:/etc/nginx/conf.d/api.saberoconsulting.com.conf:ro
+      - ./nginx/site-ssl.conf:/etc/nginx/conf.d/api-ssl.disabled:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/html:/var/www/html:ro
+      - ./letsencrypt/etc:/etc/letsencrypt:ro
+      - ./letsencrypt/lib:/var/lib/letsencrypt:ro
+    depends_on:
+      - backend
 
-volumes:
-  caddy_data:
-  caddy_config:
 

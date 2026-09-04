@@ -26,9 +26,19 @@ async function bootstrap() {
     }),
   );
 
-  // CORS para el frontend
+  // CORS: origenes autorizados (local y produccion)
+  const allowedOrigins: string[] = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://crm.saberoconsulting.com',
+  ];
+  // Si el entorno define FRONTEND_URL (u origenes extra), se agregan
+  const extraFromEnv = process.env.FRONTEND_URL;
+  const extra = extraFromEnv ? extraFromEnv.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  const origins = Array.from(new Set([...allowedOrigins, ...extra]));
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: origins,
     credentials: true,
   });
 

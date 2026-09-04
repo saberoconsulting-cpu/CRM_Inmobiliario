@@ -23,5 +23,10 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Nginx / Let's Encrypt (datos locales)
+nginx/certs/
+nginx/html/.certbot/
+letsencrypt/
+
 # Varios
 uploads/
