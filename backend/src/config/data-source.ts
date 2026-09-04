@@ -42,6 +42,16 @@ export const AppDataSource = new DataSource({
     ExpenseEntity,
     AuditLogEntity,
   ],
-  migrations: ['src/database/migrations/*.ts'],
+  migrations:
+    process.env.NODE_ENV === 'production'
+      ? ['dist/database/migrations/*.js']
+      : ['src/database/migrations/*.ts'],
+  ...(process.env.DB_SSL === 'true'
+    ? {
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      }
+    : {}),
   synchronize: false,
 });

@@ -39,6 +39,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
       username: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'crm_inmobiliario',
+      ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: false } } : {}),
       entities: [
         UserEntity, ProjectEntity, PlanEntity, BlockEntity, LotEntity,
         UserProjectEntity, ClientEntity, ClientContactEntity, CampaignEntity,
