@@ -1,0 +1,18 @@
+  ▲ Next.js 14.2.15
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+Failed to compile.
+
+./src/app/payments/page.tsx:96:46
+Type error: Cannot find name 'st'.
+
+[0m [90m 94 |[39m                     [33m<[39m[33mtd[39m className[33m=[39m[32m"td-base font-medium"[39m[33m>[39m[33mLote[39m {p[33m.[39mlotId}[33m<[39m[33m/[39m[33mtd[39m[33m>[39m[0m
+[0m [90m 95 |[39m                     [33m<[39m[33mtd[39m className[33m=[39m[32m"td-base"[39m[33m>[39m{formatMoney(p[33m.[39mamount)}[33m<[39m[33m/[39m[33mtd[39m[33m>[39m[0m
+[0m[31m[1m>[22m[39m[90m 96 |[39m                     [33m<[39m[33mtd[39m className[33m=[39m[32m"td-base"[39m[33m>[39m{st(p)}[33m<[39m[33m/[39m[33mtd[39m[33m>[39m[0m
+[0m [90m    |[39m                                              [31m[1m^[22m[39m[0m
+[0m [90m 97 |[39m                     [33m<[39m[33mtd[39m className[33m=[39m[32m"td-base"[39m[33m>[39m{formatDate(p[33m.[39mdueDate)}[33m<[39m[33m/[39m[33mtd[39m[33m>[39m[0m
+[0m [90m 98 |[39m                     [33m<[39m[33mtd[39m className[33m=[39m[32m"td-base"[39m[33m>[39m{formatDate(p[33m.[39mpaidAt)}[33m<[39m[33m/[39m[33mtd[39m[33m>[39m[0m
+[0m [90m 99 |[39m                   [33m<[39m[33m/[39m[33mtr[39m[33m>[39m[0m

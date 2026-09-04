@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #e30620;
+  --ink: #171717;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+}
+
+* {
+  border-color: #e5e7eb;
+}
+
+body {
+  @apply bg-canvas text-[#171717] antialiased;
+  font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+
+h1, h2, h3 { font-weight: 600; color: #171717; }
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-[#E5E7EB] p-5;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+  /* Botón principal: rojo marca */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-[#E30620] hover:bg-[#C9041C] text-white font-semibold rounded-lg px-4 text-sm transition-colors disabled:opacity-50;
+    height: 40px;
+  }
+  /* Botón secundario: blanco + borde rojo */
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-softred text-[#E30620] font-medium rounded-lg px-4 text-sm transition-colors disabled:opacity-50 border;
+    height: 40px;
+    border-color: #E30620;
+  }
+  /* Botón neutro */
+  .btn-neutral {
+    @apply inline-flex items-center justify-center gap-2 bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#374151] font-medium rounded-lg px-4 text-sm transition-colors disabled:opacity-50 border border-[#E5E7EB];
+    height: 40px;
+  }
+  /* Botón de peligro */
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-[#991B1B] hover:bg-[#7f1d1d] text-white font-medium rounded-lg px-4 text-sm transition-colors disabled:opacity-50;
+    height: 40px;
+  }
+  /* Deprecado aliase de secundario antiguo */
+  .btn-secondary { @apply btn-neutral; }
+  .input {
+    @apply w-full border border-[#D1D5DB] rounded-lg px-3 text-sm focus:outline-none focus:ring-2 transition-colors;
+    height: 40px;
+    background: #fff;
+    color: #171717;
+  }
+  .input:focus { @apply ring-[#E30620]/20; border-color: #E30620; }
+  textarea.input { height: auto; }
+  .label {
+    @apply block font-medium mb-1;
+    font-size: 12px;
+    color: #4b5563;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full font-medium;
+    font-size: 11px;
+  }
+  .table-base { min-width: 100%; }
+  .th-base {
+    @apply px-3 py-2.5 text-left font-medium tracking-wide whitespace-nowrap;
+    font-size: 11px;
+    color: #6b7280;
+    background:#fafafa;
+  }
+  .td-base {
+    @apply px-3 py-2.5 whitespace-nowrap;
+    font-size: 13px;
+    color: #171717;
+  }
+  /* Acento superior rojo en tarjetas KPI */
+  .card-kpi { border-top: 3px solid #E30620; }
+}
+
+/* Scrollbar discret */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-in { animation: toast-in 0.2s ease-out; }
+

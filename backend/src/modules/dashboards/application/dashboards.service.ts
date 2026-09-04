@@ -1,0 +1,176 @@
+// modules/dashboards/application/dashboards.service.ts
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ClientEntity } from '../../../shared/infrastructure/entities/client.entity';
+import { SaleEntity } from '../../../shared/infrastructure/entities/sale.entity';
+import { LotEntity } from '../../../shared/infrastructure/entities/lot.entity';
+import { FinancialTransactionEntity } from '../../../shared/infrastructure/entities/financial-transaction.entity';
+import { PaymentEntity } from '../../../shared/infrastructure/entities/payment.entity';
+import { ExpenseEntity } from '../../../shared/infrastructure/entities/expense.entity';
+import { UserEntity } from '../../../shared/infrastructure/entities/user.entity';
+
+@Injectable()
+export class DashboardsService {
+  constructor(
+    @InjectRepository(ClientEntity)
+    private readonly clientRepo: Repository<ClientEntity>,
+    @InjectRepository(SaleEntity)
+    private readonly saleRepo: Repository<SaleEntity>,
+    @InjectRepository(LotEntity)
+    private readonly lotRepo: Repository<LotEntity>,
+    @InjectRepository(FinancialTransactionEntity)
+    private readonly txnRepo: Repository<FinancialTransactionEntity>,
+    @InjectRepository(PaymentEntity)
+    private readonly paymentRepo: Repository<PaymentEntity>,
+    @InjectRepository(ExpenseEntity)
+    private readonly expenseRepo: Repository<ExpenseEntity>,
+    @InjectRepository(UserEntity)
+    private readonly userRepo: Repository<UserEntity>,
+  ) {}
+
+  async general() {
+    const monthKey = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
+    const [leadsMonth, salesMonth, txnSummary, lotStats, salesByProject, agentRanking, recentSales, recentPayments, leadsByChannel] =
+      await Promise.all([
+        this.clientRepo.createQueryBuilder('c').where('c.created_at >= :monthKey', { monthKey }).getCount(),
+        this.saleRepo.createQueryBuilder('s').where('s.created_at >= :monthKey', { monthKey }).getCount(),
+        this.txnRepo
+          .createQueryBuilder('t')
+          .select("COALESCE(SUM(CASE WHEN t.type='ingreso' THEN t.amount ELSE 0 END),0)", 'income')
+          .addSelect("COALESCE(SUM(CASE WHEN t.type='egreso' THEN t.amount ELSE 0 END),0)", 'expense')
+          .getRawOne(),
+        this.lotRepo
+          .createQueryBuilder('l')
+          .select('l.status', 'status')
+          .addSelect('COUNT(*)', 'total')
+          .groupBy('l.status')
+          .getRawMany(),
+        this.saleRepo
+          .createQueryBuilder('s')
+          .select('s.project_id', 'projectId')
+          .addSelect('COUNT(*)', 'total')
+          .addSelect('COALESCE(SUM(s.sale_price),0)', 'amount')
+          .groupBy('s.project_id')
+          .getRawMany(),
+        this.saleRepo
+          .createQueryBuilder('s')
+          .leftJoinAndSelect(UserEntity, 'u', 'u.id = s.agent_id')
+          .select('s.agent_id', 'agentId')
+          .addSelect('u.name', 'agentName')
+          .addSelect('COUNT(*)', 'salesCount')
+          .addSelect('SUM(s.sale_price)', 'salesAmount')
+          .addSelect('SUM(s.commission)', 'commission')
+          .groupBy('s.agent_id')
+          .addGroupBy('u.name')
+          .orderBy('"salesAmount"', 'DESC')
+          .getRawMany(),
+        this.saleRepo.find({ order: { createdAt: 'DESC' }, take: 10 }),
+        this.paymentRepo.find({ order: { createdAt: 'DESC' }, take: 10 }),
+        this.clientRepo
+          .createQueryBuilder('c')
+          .select('c.source', 'channel')
+          .addSelect('COUNT(*)', 'total')
+          .groupBy('c.source')
+          .getRawMany(),
+      ]);
+
+    const lotMap = Object.fromEntries(lotStats.map((r) => [r.status, Number(r.total)]));
+    const expense = Number(txnSummary.expense || 0);
+    const income = Number(txnSummary.income || 0);
+
+    const weekStart = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const campaignSpend = await this.expenseRepo
+      .createQueryBuilder('e')
+      .where('e.expense_date >= :weekStart', { weekStart })
+      .getCount();
+
+    return {
+      cards: {
+        leadsMonth: Number(leadsMonth), salesMonth: Number(salesMonth),
+        income, expense, profit: income - expense, campaignSpend,
+      },
+      lots: lotMap,
+      salesByProject: salesByProject.map((r) => ({ projectId: r.projectId, total: Number(r.total), amount: Number(r.amount) })),
+      agentRanking: agentRanking.map((r) => ({
+        agentId: r.agentId, agentName: r.agentName, salesCount: Number(r.salesCount),
+        salesAmount: Number(r.salesAmount), commission: Number(r.commission),
+      })),
+      recentSales,
+      recentPayments,
+      leadsByChannel: leadsByChannel.map((r) => ({ channel: r.channel, total: Number(r.total) })),
+    };
+  }
+
+  async forAgent(agentId: number) {
+    const monthKey = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const monthStart = monthKey.slice(0, 10);
+
+    const [salesMonth, salesAmountRes, commissionRes, lotsSold, leads, upcoming, salesByPeriod, weekRes] =
+      await Promise.all([
+        this.saleRepo.createQueryBuilder('s').where('s.agent_id = :agentId', { agentId }).select('COUNT(*)', 'total').getRawOne(),
+        this.saleRepo.createQueryBuilder('s').where('s.agent_id = :agentId', { agentId }).select('COALESCE(SUM(s.sale_price),0)', 'total').getRawOne(),
+        this.saleRepo.createQueryBuilder('s').where('s.agent_id = :agentId', { agentId }).select('COALESCE(SUM(s.commission),0)', 'total').getRawOne(),
+        this.lotRepo.count({ where: { agentId, status: 'vendido' } }),
+        this.clientRepo.find({ where: { agentId } }),
+        this.paymentRepo.find({ where: { agentId, status: 'pendiente' }, order: { dueDate: 'ASC' as 'ASC' } }),
+        this.saleRepo
+          .createQueryBuilder('s')
+          .where('s.agent_id = :agentId', { agentId })
+          .select('s.sale_date', 'date')
+          .addSelect('COUNT(*)', 'total')
+          .addSelect('COALESCE(SUM(s.sale_price),0)', 'amount')
+          .groupBy('s.sale_date')
+          .getRawMany(),
+        this.saleRepo
+          .createQueryBuilder('s')
+          .where('s.agent_id = :agentId AND s.created_at >= :monthKey', { agentId, monthKey })
+          .select('COUNT(*)', 'total')
+          .getRawOne(),
+      ]);
+
+    const agent = await this.userRepo.findOne({ where: { id: agentId } });
+    const monthSales = Number(weekRes?.total || 0);
+    const goalLots = agent?.monthlyGoalLots || 0;
+    const goalAmount = Number(agent?.monthlyGoalAmount || 0);
+    const period = salesByPeriod.map((r) => ({ date: r.date, total: Number(r.total), amount: Number(r.amount) }));
+
+    return {
+      cards: {
+        salesMonth: monthSales,
+        salesAmount: Number(salesAmountRes?.total || 0),
+        commissionMonth: Number(commissionRes?.total || 0),
+        lotsSold,
+        goalLots,
+        goalAmount,
+        progressLots: goalLots > 0 ? Math.round((monthSales / goalLots) * 100) : 0,
+      },
+      leads,
+      upcoming,
+      salesByPeriod: period,
+    };
+  }
+
+  async project(projectId: number) {
+    const [total, lotStats, salesByPeriod, income, expense] = await Promise.all([
+      this.lotRepo.count({ where: { projectId } }),
+      this.lotRepo.createQueryBuilder('l').where('l.project_id = :projectId', { projectId })
+        .select('l.status', 'status').addSelect('COUNT(*)', 'total').groupBy('l.status').getRawMany(),
+      this.saleRepo.createQueryBuilder('s').where('s.project_id = :projectId', { projectId })
+        .select('s.sale_date', 'date').addSelect('COUNT(*)', 'total').addSelect('COALESCE(SUM(s.sale_price),0)', 'amount')
+        .groupBy('s.sale_date').getRawMany(),
+      this.txnRepo.createQueryBuilder('t').where('t.project_id = :projectId AND t.type=\'ingreso\'', { projectId })
+        .select('COALESCE(SUM(t.amount),0)', 'total').getRawOne(),
+      this.txnRepo.createQueryBuilder('t').where('t.project_id = :projectId AND t.type=\'egreso\'', { projectId })
+        .select('COALESCE(SUM(t.amount),0)', 'total').getRawOne(),
+    ]);
+    const lotMap = Object.fromEntries(lotStats.map((r) => [r.status, Number(r.total)]));
+    const totalIncome = Number(income?.total || 0);
+    const totalExpense = Number(expense?.total || 0);
+    return {
+      cards: { total, lots: lotMap, income: totalIncome, expense: totalExpense, profit: totalIncome - totalExpense },
+      salesByPeriod: salesByPeriod.map((r) => ({ date: r.date, total: Number(r.total), amount: Number(r.amount) })),
+    };
+  }
+}

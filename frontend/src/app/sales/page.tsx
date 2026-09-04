@@ -1,0 +1,129 @@
+'use client';
+import { useEffect, useState, useCallback } from 'react';
+import Layout from '@/components/Layout';
+import { Toaster, toast, Field, EmptyState, StatCard } from '@/components/ui';
+import { api } from '@/lib/api';
+import { formatMoney, formatDate } from '@/lib/types';
+
+type S = { id: number; projectId: number; lotId: number; clientId?: number | null; agentId?: number | null; salePrice: string; saleDate: string; commission: string; agentName?: string | null; lotCode?: string | null; conditions?: string | null };
+
+export default function SalesPage() {
+  const [rows, setRows] = useState<S[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [lots, setLots] = useState<any[]>([]);
+  // form
+  const [projectId, setProjectId] = useState(0);
+  const [lotId, setLotId] = useState(0);
+  const [clientId, setClientId] = useState(0);
+  const [agentId, setAgentId] = useState(0);
+  const [salePrice, setSalePrice] = useState(0);
+  const [saleDate, setSaleDate] = useState('');
+  const [conditions, setConditions] = useState('');
+
+  const load = useCallback(async () => {
+    try { setRows((await api.get<S[]>('/sales')) || []); } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    load();
+    api.get<any[]>('/projects').then(setProjects).catch(() => {});
+    api.get<any[]>('/clients').then(setClients).catch(() => {});
+    api.get<any[]>('/users/agents').then(setAgents).catch(() => {});
+    api.get<any[]>('/lots').then(setLots).catch(() => {});
+  }, [load]);
+
+  async function registrar() {
+    if (!lotId) return toast('Selecciona un lote', 'err');
+    if (!agentId) return toast('Selecciona el agente', 'err');
+    if (!salePrice) return toast('Ingresa el precio de venta', 'err');
+    try {
+      const lot = lots.find((l) => l.id === Number(lotId));
+      await api.post('/sales', { projectId: projectId || lot?.projectId || 1, lotId: Number(lotId), clientId: clientId || undefined, agentId: Number(agentId), salePrice, saleDate: saleDate || undefined, conditions: conditions || undefined });
+      toast('Venta registrada. El lote pasó a Vendido.');
+      setOpen(false); setLotId(0); setClientId(0); setConditions(''); setSalePrice(0); setSaleDate(''); setAgentId(0);
+      load();
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  const total = rows.reduce((s, r) => s + Number(r.salePrice || 0), 0);
+  const comm = rows.reduce((s, r) => s + Number(r.commission || 0), 0);
+
+  return (
+    <Layout title="Ventas">
+      <Toaster />
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard label="Ventas cerradas" value={rows.length} />
+          <StatCard label="Monto total vendido" value={formatMoney(total)} color="#171717" />
+          <StatCard label="Comisiones devengadas" value={formatMoney(comm)} color="#A90318" />
+          <StatCard label="Lotes vendidos" value={rows.length} />
+        </div>
+        <div className="card">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-semibold">Historial de ventas</h3>
+            <button className="btn-primary" onClick={() => setOpen(true)}>Registrar venta</button>
+          </div>
+          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Un lote Vendido no puede volver a venderse. El sistema lo valida.</p>
+        </div>
+        <div className="card p-0 overflow-auto">
+          {loading ? <p className="p-4 text-slate-400">Cargando…</p>
+            : rows.length === 0 ? <EmptyState text="Aún no hay ventas registradas." /> : (
+            <table className="table-base">
+              <thead><tr>
+                <th className="th-base">Lote</th><th className="th-base">Cliente</th><th className="th-base">Agente</th>
+                <th className="th-base">Precio</th><th className="th-base">Comisión</th><th className="th-base">Fecha</th>
+              </tr></thead>
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((s) => (
+                  <tr key={s.id}>
+                    <td className="td-base font-medium">{s.lotCode || `Lote ${s.lotId}`}</td>
+                    <td className="td-base">{s.clientId ? `Cliente #${s.clientId}` : '—'}</td>
+                    <td className="td-base">{s.agentName || '—'}</td>
+                    <td className="td-base font-medium">{formatMoney(s.salePrice)}</td>
+                    <td className="td-base">{formatMoney(s.commission)}</td>
+                    <td className="td-base">{formatDate(s.saleDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+        </div>
+      </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-lg p-6">
+            <h3 className="font-semibold mb-5" style={{ fontSize: 17 }}>Registrar venta</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Proyecto">
+                <select className="input" value={projectId} onChange={(e) => setProjectId(Number(e.target.value))}>
+                  <option value={0}>Auto / Todos</option>
+                  {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Cliente"><select className="input" value={clientId} onChange={(e) => setClientId(Number(e.target.value))}><option value={0}>— Sin asignar —</option>{clients.map((c: any) => <option key={c.id} value={c.id}>{c.full_name}</option>)}</select></Field>
+              <Field label="Agente *"><select className="input" value={agentId} onChange={(e) => setAgentId(Number(e.target.value))}><option value={0}>Selecciona…</option>{agents.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Precio de venta (S/) *"><input type="number" className="input" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></Field>
+              <Field label="Fecha"><input type="date" className="input" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
+            </div>
+            <Field label="Condiciones"><textarea className="input" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <button className="btn-neutral" onClick={() => setOpen(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={registrar}>Registrar venta</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
+}
+
