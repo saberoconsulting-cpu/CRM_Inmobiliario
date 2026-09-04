@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: crm_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Lopez2003}
+      POSTGRES_DB: ${DB_NAME:-crm_inmobiliario}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-crm_inmobiliario}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+    container_name: crm_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Lopez2003}
+      DB_NAME: ${DB_NAME:-crm_inmobiliario}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      JWT_EXPIRES_IN: 1d
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+      RUN_SEED: ${RUN_SEED:-true}
+    volumes:
+      - uploads:/app/uploads
+    # Arranque: aplicar migraciones limpias y luego correr la API
+    command: >
+      sh -c "echo Iniciando migraciones... &&
+      node dist/config/bootstrap-migrate.js &&
+      echo Migraciones OK - arrancando API... &&
+      exec node dist/main.js"
+    ports:
+      - "3001:3001"
+
+volumes:
+  pgdata:
+  uploads:

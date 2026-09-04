@@ -1,0 +1,27 @@
+# Node
+node_modules/
+*.log
+npm-debug.log*
+
+# Builds
+backend/dist/
+backend/*.tsbuildinfo
+frontend/.next/
+frontend/out/
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+backend/uploads/
+frontend/.env
+frontend/.env.local
+
+# Sistema/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Varios
+uploads/
