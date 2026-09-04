@@ -1,67 +1,97 @@
 # Guía de despliegue
 
-Arquitectura: **Frontend (Next.js) en Vercel** + **Backend (Nest) y PostgreSQL en Contabo vía Docker Compose**.
+Frontend (Next.js/Next) en Vercel → `https://crm.saberoconsulting.com` (lo que ve el cliente).
+Backend (Nest) en Contabo con Docker → `https://api.saberoconsulting.com` (solo lo usa el front).
+Base de datos gestionada en Supabase (Postgres) y Cloudinary para imágenes.
 
 ```
-Navegador ─► Vercel (frontend)
-                 │  https://api.tu-dominio
+Cliente → https://crm.saberoconsulting.com   (Vercel, frontend)
+                 │ fetch/axios
                  ▼
-            Contabo (Docker)
-          backend(:3001) + postgres(:5432)
+            https://api.saberoconsulting.com  (Contabo · Caddy TLS)
+                 ▼
+            contenedor crm_backend :3001  (Nest)
+                 ▼
+            Supabase (Postgres) · Cloudinary (imágenes)
 ```
 
-## A) Variables de entorno backend (Contabo)
+## A) Variables de entorno (Contabo)
 
-Crea un archivo `.env` en la raíz del repo (donde está `docker-compose.yml`):
+Crea `.env` en la raíz del repo (donde está `docker-compose.yml`); NO lo subas a git:
 
 ```bash
-DB_USER=postgres
-DB_PASSWORD=Cambia_esto_contra_segura
-DB_NAME=crm_inmobiliario
-JWT_SECRET=Cambia_esto_token_secreto_muy_largo_aleatorio
-FRONTEND_URL=https://tu-front.vercel.app
-RUN_SEED=true
+# Supabase / Pooler
+DB_HOST=aws-0-us-west-2.pooler.supabase.com
+DB_PORT=5432
+DB_USER=postgres.<ref>
+DB_PASSWORD=<password>
+DB_NAME=postgres
+DB_SSL=true
+
+# API
+JWT_SECRET=<secreto_largo_aleatorio>
+JWT_EXPIRES_IN=1d
+FRONTEND_URL=https://crm.saberoconsulting.com
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=<cloud_name>
+CLOUDINARY_API_KEY=<api_key>
+CLOUDINARY_API_SECRET=<api_secret>
 ```
 
-> El `docker-compose.yml` exige `JWT_SECRET` (usa `${JWT_SECRET:?}`), así que sin `.env` no arranca a propósito.
+El `docker-compose.yml` exige con `${VAR:?}`: `DB_HOST, DB_USER, DB_PASSWORD, JWT_SECRET,
+CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET`. Sin `.env` no arranca (a propósito).
 
 ## B) Vercel (frontend)
 
-1. Sube el repo y crea proyecto apuntando al directorio **`frontend`** (root).
-2. Configura Build/Start que vienen por defecto de Next.
-3. Añade **Enviroment Variables**:
-   - `NEXT_PUBLIC_API=https://api.tu-dominio`  (o `http://IP:3001` para pruebas)
-4. `next.config.js` ya reescribe `/api/*` y `/uploads/*` hacia `NEXT_PUBLIC_API`, así el frontend habla con tu back en Contabo (incluye Socket.IO).
-5. Deploy. Usa el dominio `*.vercel.app` o uno propio.
+1. Deploy del directorio `frontend`.
+2. Environment variable del front: `NEXT_PUBLIC_API=https://api.saberoconsulting.com`.
+3. `next.config.js` ya reenvía `/api/*` y `/uploads/*` hacia `NEXT_PUBLIC_API`.
+4. Punto tu dominio DNS `crm` (CNAME a Vercel / A si corresponde) de modo que
+   el cliente use `https://crm.saberoconsulting.com`.
 
-## C) Contabo — subir y levantar (Docker)
-
-Desde tu máquina (usando tu llave `id_contabo`):
+## C) Contabo — levantar contenedores
 
 ```bash
 ssh -i ~/.ssh/id_contabo ubuntu@209.145.62.118
-```
-
-En el servidor (la primera vez) instala Docker si no está:
-
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-Clona y levanta:
-
-```bash
-cd ~
-git clone <TU_REPO_URL> crm && cd crm
-# crea y edita .env (paso A)
+cd ~/crm                          # clona tu repo y crea .env según paso A
 nano .env
 docker compose up -d --build
-docker compose ps
+docker compose ps                 # backend + caddy
 ```
 
-Al arrancar, el contenedor `backend` corre automáticamente las **migraciones** (esquema + seed de datos demo si `RUN_SEED=true`) antes de levantar la API. Valida:
+El contenedor `backend` aplica las **migraciones** contra Supabase y expone la app en `:3001`
+(en red interna). El contenedor `caddy` hace el proxy + TLS y escucha en 80/443.
+
+Para probar sin dominio:
+```bash
+docker compose exec backend sh -c "node dist/config/bootstrap-migrate.js && node dist/main.js" &
+docker compose logs backend
+```
+(Si necesitas exponer el 3001 a la IP para pruebas, agrega `ports: ["3001:3001"]` en el servicio backend.)
+
+## D) Caddy y DNS
+
+El `Caddyfile` del repo ya define `api.saberoconsulting.com → reverse_proxy crm_backend:3001`.
+En tu panel DNS:
+- `api` (A/CNAME) → `209.145.62.118` (Contabo) para que Caddy resuelva y emita el certificado Let's Encrypt de `api.saberoconsulting.com`.
+- `crm` → apunta a Vercel (para que el cliente use `https://crm.saberoconsulting.com`).
+
+Caddy obtiene el certificado automáticamente al reservar `api.saberoconsulting.com` (puertos 80/443 abiertos en el firewall de Contabo).
+
+## E) Migraciones limpias (contra Supabase)
+
+```bash
+docker compose up -d backend
+docker compose logs backend       # verás "Migraciones OK - arrancando API..."
+```
+Las migraciones ya corren cada arranque (son idempotentes). Si quieres resetear el esquema en Supabase hazlo desde el panel SQL de Supabase, no con SSH (es BD gestionada).
+
+## Notas de seguridad
+- Ningún secreto debe quedar en el código o en composición versionada (usa solo `.env`).
+- Nunca sirvas la BD ni el 3001 directo al público; solo `api.*` vía Caddy.
+- Rota credenciales si llegaron a quedar en mensajes/logs históricos.
+
 
 ```bash
 curl http://localhost:3001/api/auth/login   # 404 en GET es normal

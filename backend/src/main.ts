@@ -4,8 +4,17 @@ import { ValidationPipe } from '@nestjs/common';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { configureCloudinary, cloudinaryConfigured } from './shared/infrastructure/upload/cloudinary.util';
 
 async function bootstrap() {
+  // Configurar Cloudinary si las credenciales están en el entorno
+  if (cloudinaryConfigured()) {
+    configureCloudinary({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME as string,
+      api_key: process.env.CLOUDINARY_API_KEY as string,
+      api_secret: process.env.CLOUDINARY_API_SECRET as string,
+    });
+  }
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.setGlobalPrefix('api');

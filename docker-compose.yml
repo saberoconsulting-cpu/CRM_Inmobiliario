@@ -1,7 +1,6 @@
-version: "3.9"
+# docker-compose — backend + reverse proxy (Caddy) para Contabo.
+# El backend (Nest) usa Supabase y Cloudinary. Ningún secreto hardcodeado.
 
-# despliegue backend (Nest) en Contabo → conecta a Supabase (Postgres gestionado).
-# El frontend (Vercel) nunca accede a la base.
 services:
   backend:
     build:
@@ -11,28 +10,43 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      # Conexión Supabase (Pooler)
-      DB_HOST: aws-0-us-west-2.pooler.supabase.com
-      DB_PORT: 5432
-      DB_USER: postgres.efhjsfjzvfllcoznnrqy
-      DB_PASSWORD: Yw8m5pSHaOKep2jj
-      DB_NAME: postgres
-      DB_SSL: true
+      # Conexión Supabase (Pooler) — credenciales desde .env del servidor
+      DB_HOST: ${DB_HOST:?Define DB_HOST}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_USER: ${DB_USER:?Define DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      DB_NAME: ${DB_NAME:-postgres}
+      DB_SSL: ${DB_SSL:-true}
+      # Autenticación API
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       JWT_EXPIRES_IN: 1d
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      UPLOAD_DIR: /app/uploads
-    volumes:
-      - uploads:/app/uploads
-    # Arranque: aplicar migraciones contra Supabase y luego correr la API
+      UPLOAD_DIR: /tmp/uploads
+      # Cloudinary — name público, API_KEY/SECRET requeridos desde .env
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME?Defina CLOUDINARY_CLOUD_NAME en .env}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:?Define CLOUDINARY_API_KEY en .env}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:?Define CLOUDINARY_API_SECRET en .env}
     command: >
       sh -c "echo Aplicando migraciones contra Supabase... &&
       node dist/config/bootstrap-migrate.js &&
       echo Migraciones OK - arrancando API... &&
       exec node dist/main.js"
+
+  # Reverse proxy + TLS (Let's Encrypt) hacia api.saberoconsulting.com
+  caddy:
+    image: caddy:2-alpine
+    container_name: crm_caddy
+    restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
-  uploads:
+  caddy_data:
+  caddy_config:
 

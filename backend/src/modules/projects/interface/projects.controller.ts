@@ -11,10 +11,9 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { ProjectsService } from '../application/projects.service';
+import { uploadToCloudinary } from '../../../shared/infrastructure/upload/cloudinary.util';
 import { CreateProjectDto } from '../application/dto/create-project.dto';
 import { JwtAuthGuard } from '../../../shared/application/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../shared/application/guards/roles.guard';
@@ -70,27 +69,13 @@ export class ProjectsController {
 
   @Post('cover/:id')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'covers');
-          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (req, file, cb) => {
-          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `cover-${unique}${extname(file.originalname)}`);
-        },
-      }),
-    }),
-  )
-  uploadCover(
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadCover(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser('id') actorId: number,
   ) {
-    const url = `/uploads/covers/${file.filename}`;
-    return this.projectsService.updateCover(id, url, actorId);
+    const up = await uploadToCloudinary(file.buffer, 'covers');
+    return this.projectsService.updateCover(id, up.secure_url, actorId);
   }
 }

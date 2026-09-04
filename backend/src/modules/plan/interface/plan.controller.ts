@@ -11,9 +11,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
+
+import { uploadToCloudinary } from '../../../shared/infrastructure/upload/cloudinary.util';
+
 import { PlanService } from '../application/plan.service';
 import { UpdatePlanDto } from '../application/dto/plan.dto';
 import { CreateBlockDto, UpdateBlockDto } from '../application/dto/plan.dto';
@@ -47,29 +48,16 @@ export class PlanController {
 
   @Post('image/:projectId')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'plans');
-          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (req, file, cb) => {
-          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `plan-${unique}${extname(file.originalname)}`);
-        },
-      }),
-    }),
-  )
-  uploadImage(
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async uploadImage(
     @Param('projectId', ParseIntPipe) projectId: number,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser('id') actorId: number,
   ) {
-    const url = `/uploads/plans/${file.filename}`;
-    return this.planService.uploadImage(projectId, url, actorId);
+    const up = await uploadToCloudinary(file.buffer, 'plans');
+    return this.planService.uploadImage(projectId, up.secure_url, actorId);
   }
+
 
   // ---- manzanas ----
   @Post('block/:projectId')

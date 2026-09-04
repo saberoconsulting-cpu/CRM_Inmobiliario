@@ -1,0 +1,6 @@
+# Caddy configuración (proxy + TLS para Contabo)
+# api.* es técnico: solo lo usa el frontend (Vercel) internamente.
+
+api.saberoconsulting.com {
+	reverse_proxy crm_backend:3001
+}
