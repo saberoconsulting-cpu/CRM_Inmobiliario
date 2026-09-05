@@ -34,7 +34,7 @@ export default function LotesPage() {
     } catch (e: any) { toast(e.message, 'err'); }
   }
   useEffect(() => { load(); }, [statusFilter, search, project, page, limit]);
-  useEffect(() => { api.get<any>('/projects').then((d) => setProyectos(d?.items ?? d || [])).catch(() => {}); }, []);
+  useEffect(() => { api.get<any>('/projects').then((d) => setProyectos(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [statusFilter, search, project]);
 
   return (

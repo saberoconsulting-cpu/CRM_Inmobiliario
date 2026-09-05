@@ -83,7 +83,6 @@ export default function InteractivePlan({
   function onPointerLeave() { setDrag(null); setTooltip(null); }
 
   function zoomCentered(factor: number) {
-  function zoomCentered(factor: number) {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const cw = rect.width || 0;
@@ -189,4 +188,3 @@ export default function InteractivePlan({
       </div>
     );
   }
-}

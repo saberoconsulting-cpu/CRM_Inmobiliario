@@ -6,6 +6,7 @@ import { api, uploadFile } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FiMap } from 'react-icons/fi';
 import { Project, formatMoney } from '@/lib/types';
+import ProjectsMap from '@/components/ProjectsMap';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [openMap, setOpenMap] = useState(false);
   const [form, setForm] = useState<any>({});
   const [cover, setCover] = useState<File | null>(null);
   const setf = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
@@ -61,12 +63,13 @@ export default function ProjectsPage() {
   return (
     <Layout title="Proyectos">
       <Toaster />
-      {canEdit && (
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <p className="text-sm" style={{ color: '#6B7280' }}>Unidades comerciales activas y su avance comercial.</p>
-          <button className="btn-primary" onClick={() => setOpenCreate(true)}>Crear proyecto</button>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <p className="text-sm" style={{ color: '#6B7280' }}>Unidades comerciales activas y su avance comercial.</p>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-neutral" onClick={() => setOpenMap(true)}>Ver en el mapa</button>
+          {canEdit && <button className="btn-primary" onClick={() => setOpenCreate(true)}>Crear proyecto</button>}
         </div>
-      )}
+      </div>
       {loading ? <p className="text-slate-400">Cargando…</p> : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {projects.map((p) => (
@@ -124,6 +127,21 @@ export default function ProjectsPage() {
               <button className="btn-neutral" onClick={() => setOpenCreate(false)}>Cancelar</button>
               <button className="btn-primary" onClick={crearProyecto}>Crear proyecto</button>
             </div>
+          </div>
+        </div>
+      )}
+      {openMap && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setOpenMap(false)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-semibold" style={{ color: '#171717' }}>Proyectos en el mapa</h3>
+                <p className="text-xs text-slate-500">Arrastra el mapa, haz zoom y toca el marcador para ver el proyecto.</p>
+              </div>
+              <button className="btn-neutral !h-8 text-sm" onClick={() => setOpenMap(false)}>Cerrar</button>
+            </div>
+            <ProjectsMap projects={projects} onOpen={(id) => { setOpenMap(false); router.push(`/projects/${id}`); }} />
           </div>
         </div>
       )}
