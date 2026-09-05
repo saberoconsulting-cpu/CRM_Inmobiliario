@@ -47,8 +47,9 @@ export default function Layout({ children, title }: { children: ReactNode; title
     const refresh = async () => {
       if (!isAdmin) return;
       try {
-        const rows: any[] = await api.get<any[]>('/sales/pending');
-        const pending = (rows || []).filter((r: any) => (r.approvalStatus || r.status || 'pendiente') === 'pendiente');
+        const data: any = await api.get<any>('/sales/pending');
+        const rows: any[] = Array.isArray(data) ? data : (data?.items || []);
+        const pending = rows.filter((r: any) => (r.approvalStatus || r.status || 'pendiente') === 'pendiente');
         setPendingApp({ count: pending.length, rows: pending });
       } catch { /* sin endpoint / sesión */ }
     };

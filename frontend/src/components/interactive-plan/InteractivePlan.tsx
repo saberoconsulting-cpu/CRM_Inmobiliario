@@ -27,6 +27,7 @@ export default function InteractivePlan({
   const [scale, setScale] = useState(1);
   const [t, setT] = useState({ x: 0, y: 0 });
   const [tooltip, setTooltip] = useState<{ lot: Lot; x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<null | { sx: number; sy: number; ox: number; oy: number }>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const imgScale = Math.min(SVG_W / imageW, SVG_H / imageH);
@@ -52,7 +53,36 @@ export default function InteractivePlan({
     return () => window.removeEventListener('resize', fit);
   }, []);
 
-  // Zoom centrado en el plano (usado solo por los botones + / −).
+  // Zoom centrado en el plano (usado solo por los botones + / -).
+  function zoomAt(clientX: number, clientY: number, factor: number) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const px = clientX - rect.left;
+    const py = clientY - rect.top;
+    const next = Math.min(6, Math.max(0.4, scale * factor));
+    const nx = px - ((px - t.x) / scale) * next;
+    const ny = py - ((py - t.y) / scale) * next;
+    setScale(next);
+    setT({ x: nx, y: ny });
+  }
+
+  function onWheel(e: any) {
+    e.preventDefault?.();
+    zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1 / 1.15 : 1.15);
+  }
+
+  function onPointerDown(e: any) {
+    if (e.target && e.target.closest?.('button')) return;
+    setDrag({ sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y });
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+  }
+  function onPointerMove(e: any) {
+    if (drag) setT({ x: drag.ox + (e.clientX - drag.sx), y: drag.oy + (e.clientY - drag.sy) });
+  }
+  function onPointerUp() { setDrag(null); }
+  function onPointerLeave() { setDrag(null); setTooltip(null); }
+
+  function zoomCentered(factor: number) {
   function zoomCentered(factor: number) {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -75,11 +105,16 @@ export default function InteractivePlan({
       ref={containerRef}
       className="relative w-full h-full overflow-hidden rounded-lg select-none touch-none"
       style={{ aspectRatio: `${SVG_W}/${SVG_H}`, background: '#EEEFF1' }}
+      onWheel={onWheel}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
       onMouseLeave={() => setTooltip(null)}
     >
       <svg
         ref={svgRef}
-        className="absolute inset-0 w-full h-full cursor-default"
+        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
         viewBox={`${-t.x / scale} ${-t.y / scale} ${SVG_W / scale} ${SVG_H / scale}`}
       >
           {imageUrl && (
@@ -154,3 +189,4 @@ export default function InteractivePlan({
       </div>
     );
   }
+}

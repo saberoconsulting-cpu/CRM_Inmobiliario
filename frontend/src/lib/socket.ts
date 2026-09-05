@@ -7,7 +7,11 @@ let socket: Socket | null = null;
 export function getSocket(token: string): Socket {
   if (socket) return socket;
   socket = io(process.env.NEXT_PUBLIC_API || 'http://localhost:3001', {
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1500,
+    timeout: 20000,
     auth: { token },
   });
   return socket;

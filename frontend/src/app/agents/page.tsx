@@ -12,8 +12,9 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
     try {
-      const [ag, sv] = await Promise.all([api.get<A[]>('/users/agents'), api.get<any[]>('/sales')]);
-      setRows(ag || []); setSales(sv || []);
+      const [ag, sv] = await Promise.all([api.get<any>('/users/agents'), api.get<any>('/sales')]);
+      setRows(Array.isArray(ag) ? ag : (ag?.items || []));
+      setSales(Array.isArray(sv) ? sv : (sv?.items || []));
     } catch (e: any) { toast((e as any).message as string, 'err'); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
