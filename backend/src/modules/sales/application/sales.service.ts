@@ -44,10 +44,13 @@ export class SalesService {
     }
 
     const agent = await this.userRepo.findOne({ where: { id: dto.agentId } });
-    const commissionRate = Number(agent?.commissionRate || 0);
-    const commission = (dto.salePrice * commissionRate) / 100;
+    const appliesAgency = !!dto.appliesCommission;
+    const commissionRate = dto.commissionRate ?? Number(agent?.commissionRate || 0);
+    const commission = commissionRate ? (dto.salePrice * commissionRate) / 100 : 0;
     const totalCuotas = dto.totalCuotas || 0;
-    const valorCuota = dto.valorCuota || (dto.totalCuotas && dto.totalCuotas > 0 ? dto.salePrice / dto.totalCuotas : 0);
+    // En inmobiliaria la financiación arranca del neto (se descuenta la comisión del lote)
+    const financingBase = appliesAgency ? dto.salePrice - commission : dto.salePrice;
+    const valorCuota = dto.valorCuota || (dto.totalCuotas && dto.totalCuotas > 0 ? financingBase / dto.totalCuotas : 0);
 
     const sale = this.saleRepo.create({
       projectId: dto.projectId,
@@ -57,6 +60,7 @@ export class SalesService {
       salePrice: String(dto.salePrice),
       saleDate: dto.saleDate || undefined,
       commission: String(commission),
+      financingBase: String(financingBase),
       conditions: dto.conditions,
       status: 'cerrada',
       approvalStatus: 'pendiente',

@@ -27,5 +27,13 @@ export class CreatePaymentDto {
 
   @IsOptional()
   @IsString()
+  paymentMethod?: string;
+
+  @IsOptional()
+  @IsString()
+  reference?: string;
+
+  @IsOptional()
+  @IsString()
   note?: string;
 }

@@ -2,18 +2,25 @@
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { Toaster, toast, Field, EmptyState, StatCard } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, uploadFile } from '@/lib/api';
+import { DistribucionPie, LineaTiempo } from '@/components/charts/Charts';
+import { PaginationBar } from '@/components/PaginationBar';
 import { formatMoney, formatDate } from '@/lib/types';
 
 type P = { id: number; projectId: number; lotId: number; type: string; amount: string; dueDate?: string | null; paidAt?: string | null; status: string };
 const TYPE_LABEL: any = { reserva: 'Reserva', adelanto: 'Adelanto', primera_cuota: 'Primera cuota', cuota: 'Cuota' };
 const BADGE: any = { pagado: ['#EAF7EE', '#257849'], pendiente: ['#FFF6E4', '#B45309'], vencido: ['#FFF1F3', '#A90318'] };
+const METHODS = [['yape', 'Yape / Plin (QR)'], ['transferencia', 'Transferencia bancaria'], ['deposito', 'Depósito en banco'], ['tarjeta', 'Tarjeta de débito/crédito'], ['efectivo', 'Efectivo / oficina'], ['otro', 'Otro']];
 
 export default function PaymentsPage() {
   const [rows, setRows] = useState<P[]>([]);
   const [status, setStatus] = useState('');
   const [overdue, setOverdue] = useState<P[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+  const [cash, setCash] = useState<any>({ methods: [], byMonth: [] });
   const [lots, setLots] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [lotId, setLotId] = useState(0);
@@ -21,32 +28,55 @@ export default function PaymentsPage() {
   const [dueDate, setDueDate] = useState('');
   const [payType, setPayType] = useState('reserva');
   const [note, setNote] = useState('');
+  const [payMethod, setPayMethod] = useState('yape');
+  const [reference, setReference] = useState('');
+  const [voucher, setVoucher] = useState<File | null>(null);
+  const [voucherUrl, setVoucherUrl] = useState('');
 
   const load = useCallback(async () => {
     try {
       const q = new URLSearchParams();
       if (status) q.set('status', status);
-      const res = await api.get<P[]>(q.toString() ? `/payments?${q}` : '/payments');
-      setRows(res || []);
+      q.set('page', String(page)); q.set('limit', String(limit));
+      const back = (await api.get<any>(`/payments?${q.toString()}`)) || {};
+      const arr: P[] = Array.isArray(back) ? back : (back.items || []);
+      setRows(arr);
+      setMeta({
+        total: Number(back.total ?? arr.length),
+        totalPages: Number(back.totalPages ?? Math.max(1, Math.ceil((back.total ?? arr.length) / limit))),
+      });
     } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
-  }, [status]);
+  }, [status, page, limit]);
 
   useEffect(() => {
     load();
     api.get<{ overdue: P[] }>('/payments/alerts').then((a) => setOverdue(a?.overdue || [])).catch(() => setOverdue([]));
-    api.get<any[]>('/lots').then(setLots).catch(() => {});
+    api.get<any[]>('/lots').then((d) => setLots(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
   }, [load]);
+
+  useEffect(() => { setPage(1); }, [status]);
+
+  useEffect(() => {
+    api.get<any>('/payments/caja').then(setCash).catch(() => {});
+  }, []);
 
   async function registrar() {
     if (!lotId) return toast('Selecciona un lote', 'err');
     if (!amount) return toast('Ingresa monto', 'err');
     try {
       const lot = lots.find((l) => l.id === Number(lotId));
-      await api.post('/payments', { projectId: lot?.projectId || 1, lotId: Number(lotId), clientId: lot?.clientId || undefined, agentId: lot?.agentId || undefined, type: payType, amount, dueDate: dueDate || undefined, note: note || undefined });
-      toast('Pago registrado');
-      setOpen(false); setAmount(0); setDueDate(''); setNote(''); setLotId(0);
+      const saved: any = await api.post('/payments', { projectId: lot?.projectId || 1, lotId: Number(lotId), clientId: lot?.clientId || undefined, agentId: lot?.agentId || undefined, type: payType, amount, dueDate: dueDate || undefined, paymentMethod: payMethod, reference: reference || undefined, note: note || undefined });
+      if (voucher) { await uploadFile(`/payments/voucher/${saved?.id}`, voucher); }
+      toast(voucher ? 'Pago registrado con comprobante adjunto' : 'Pago registrado');
+      setOpen(false); setAmount(0); setDueDate(''); setNote(''); setLotId(0); setPayMethod('yape'); setReference(''); setVoucher(null); setVoucherUrl('');
       load();
     } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  function pickVoucher(f?: File) {
+    if (!f) { setVoucher(null); setVoucherUrl(''); return; }
+    setVoucher(f);
+    if (window) { try { if (voucherUrl.startsWith('blob:')) URL.revokeObjectURL(voucherUrl); } catch {} setVoucherUrl(URL.createObjectURL(f)); }
   }
 
   const st = (p: P) => { const bg = BADGE[p.status] || ['#eaedf1', '#6b7280']; return <span className="badge" style={{ background: bg[0], color: bg[1] }}>{p.status}</span>; };
@@ -61,11 +91,30 @@ export default function PaymentsPage() {
           </div>
         )}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Registrados" value={rows.length} />
-          <StatCard label="Pagados" value={rows.filter((r) => r.status === 'pagado').length} color="#257849" />
-          <StatCard label="Pendientes" value={rows.filter((r) => r.status === 'pendiente').length} color="#B45309" />
-          <StatCard label="Vencidos" value={rows.filter((r) => r.status === 'vencido').length} color="#A90318" />
+          <StatCard label="Registros (filtrados)" value={meta.total} />
+          <StatCard label="Total abonado (pagado)" value={'S/ ' + ((cash?.methods || []).reduce((s: number, m: any) => s + Number(m.monto || 0), 0)).toLocaleString('es-PE')} color="#257849" />
+          <StatCard label="Medios usados" value={(cash?.methods || []).length} color="#B45309" />
+          <StatCard label="Meses con recaudo" value={(cash?.byMonth || []).length} color="#A90318" />
         </div>
+
+        {/* Caja / canales de ingreso */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+          <div className="card">
+            <h3 className="font-semibold mb-3">¿Por dónde entran más pagos?</h3>
+            <div style={{ height: 240 }}>
+              {cash?.methods?.length ? (
+                <DistribucionPie data={cash.methods.map((m: any) => ({ name: String(m.method || 'otro'), value: Number(m.monto || 0) }))}
+                  colorMap={(n) => ({ yape: '#7C3AED', plin: '#7C3AED', transferencia: '#2563EB', deposito: '#0EA5E9', tarjeta: '#171717', efectivo: '#E30620', otro: '#9AA1AB' })[n] || '#9AA1AB'} />
+              ) : <p className="py-10 text-center text-sm text-slate-400">Aún no hay pagos pagados para mostrar la distribución.</p>}
+            </div>
+          </div>
+          <div className="card">
+            <h3 className="font-semibold mb-3">Recaudación por mes</h3>
+            <LineaTiempo data={(cash?.byMonth || []).map((r: any) => ({ mes: r.month, valor: Number(r.monto || 0) }))} xKey="mes" yKey="valor" color="#7C3AED" />
+            {(cash?.byMonth || []).length === 0 && <p className="py-10 text-center text-sm text-slate-400">Sin datos de recaudación todavía.</p>}
+          </div>
+        </div>
+
         <div className="card">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-semibold">Historial de pagos</h3>
@@ -94,7 +143,7 @@ export default function PaymentsPage() {
                   <tr key={p.id}>
                     <td className="td-base capitalize">{TYPE_LABEL[p.type] || p.type}</td>
                     <td className="td-base font-medium">Lote {p.lotId}</td>
-                    <td className="td-base">{formatMoney(p.amount)}</td>
+                    <td className="td-base">{(p as any).paymentMethod ? <span className="badge bg-slate-100 text-slate-600 capitalize mr-1">{(p as any).paymentMethod}</span> : null}{formatMoney(p.amount)}{(p as any).voucherUrl ? <> <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver voucher</a></> : null}</td>
                     <td className="td-base">{st(p)}</td>
                     <td className="td-base">{formatDate(p.dueDate)}</td>
                     <td className="td-base">{formatDate(p.paidAt)}</td>
@@ -103,6 +152,9 @@ export default function PaymentsPage() {
               </tbody>
             </table>
             )}
+            <div className="bg-white p-3 border-t" style={{ borderColor: '#F0F1F3' }}>
+              <PaginationBar label="Pagos" page={page} totalPages={meta.totalPages} total={meta.total} limit={limit} setPage={setPage} setLimit={setLimit} />
+            </div>
         </div>
       </div>
       {open && (
@@ -121,6 +173,25 @@ export default function PaymentsPage() {
                 <option value="reserva">Reserva</option><option value="adelanto">Adelanto</option>
                 <option value="primera_cuota">Primera cuota</option><option value="cuota">Cuota</option>
               </select>
+            </Field>
+            <Field label="Medio de pago">
+              <select className="input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                {METHODS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+              </select>
+            </Field>
+            <Field label="Referencia (n.º operación Yape/banco)">
+              <input className="input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Ej: YAP-48592910 / 0293-4521-1000" />
+            </Field>
+            <Field label="Comprobante (baucher o captura)">
+              <div className="flex flex-wrap gap-2">
+                <label className="btn-neutral cursor-pointer text-xs">
+                  📂 <input type="file" accept="image/*" className="hidden" onChange={(e) => { pickVoucher(e.target.files?.[0]); e.target.value = ''; }} /> Subir imagen
+                </label>
+                <label className="btn-neutral cursor-pointer text-xs">
+                  📷 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { pickVoucher(e.target.files?.[0]); e.target.value = ''; }} /> Tomar foto
+                </label>
+                {voucherUrl && <img src={voucherUrl} alt="Voucher" className="w-24 h-24 rounded-lg object-cover border" />}
+              </div>
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Monto (S/)"><input type="number" className="input" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></Field>

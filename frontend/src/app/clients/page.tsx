@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { Toaster, toast, Field, StatCard } from '@/components/ui';
 import { api } from '@/lib/api';
+import { PaginationBar } from '@/components/PaginationBar';
 import { formatDate } from '@/lib/types';
 
 type C = { id: number; full_name: string; phone?: string | null; email?: string | null; source?: string; pipeline_status: string; agent_id?: number | null; created_at: string };
@@ -19,6 +20,10 @@ export default function ClientsPage() {
   const [fPipeline, setFPipeline] = useState('');
   const [form, setForm] = useState<any>({});
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+
   const set = (k: string, v: any) => setForm((p: any) => ({ ...p, [k]: v }));
 
   const load = useCallback(async () => {
@@ -26,9 +31,19 @@ export default function ClientsPage() {
       const q = new URLSearchParams();
       if (fSource) q.set('channel', fSource);
       if (fPipeline) q.set('pipelineStatus', fPipeline);
-      setRows((await api.get<C[]>(q.toString() ? `/clients?${q}` : '/clients')) || []);
+      q.set('page', String(page)); q.set('limit', String(limit));
+      const url = `/clients${q.toString() ? `?${q}` : ''}`;
+      const d = (await api.get<any>(url)) || {};
+      const arr: C[] = Array.isArray(d) ? d : (d.items || []);
+      setRows(arr);
+      setMeta({
+        total: Number(d.total ?? arr.length),
+        totalPages: Number(d.totalPages ?? Math.max(1, Math.ceil(arr.length / limit))),
+      });
     } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
-  }, [fSource, fPipeline]);
+  }, [fSource, fPipeline, page, limit]);
+
+  useEffect(() => { setPage(1); }, [fSource, fPipeline]);
 
   useEffect(() => { load(); api.get<any[]>('/users/agents').then(setAgents).catch(() => {}); }, [load]);
 
@@ -49,7 +64,7 @@ export default function ClientsPage() {
     catch (e: any) { toast(e.message, 'err'); }
   }
 
-  const contados = rows.length;
+  const contados = meta.total || rows.length;
 
   return (
     <Layout title="Clientes y leads">
@@ -86,14 +101,15 @@ export default function ClientsPage() {
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((c) => {
-                  const pc = PCOLOR[c.pipeline_status] || ['#F3F4F6', '#374151'];
+                  const ps = (c as any).pipelineStatus || c.pipeline_status;
+                  const pc = PCOLOR[ps] || ['#F3F4F6', '#374151'];
                   return (
                     <tr key={c.id}>
                       <td className="td-base font-medium">{(c as any).fullName || c.full_name}</td>
                       <td className="td-base">{c.phone || c.email || '—'}</td>
                       <td className="td-base capitalize">{c.source || 'web'}</td>
                       <td className="td-base">
-                        <select className="input !h-7 !w-40 !text-xs" value={c.pipeline_status} onChange={(e) => mover(c, e.target.value)}>
+                        <select className="input !h-7 !w-40 !text-xs" value={(c as any).pipelineStatus || c.pipeline_status} onChange={(e) => mover(c, e.target.value)}>
                           {Object.keys(PIPELINE).map((k) => <option key={k} value={k}>{PIPELINE[k]}</option>)}
                         </select>
                       </td>
@@ -105,6 +121,9 @@ export default function ClientsPage() {
               </tbody>
             </table>
             )}
+            <div className="bg-white p-4 border-t" style={{ borderColor: '#F0F1F3' }}>
+              <PaginationBar label="Clientes" page={page} totalPages={meta.totalPages} total={meta.total} limit={limit} setPage={setPage} setLimit={setLimit} />
+            </div>
         </div>
       </div>
       {open && (

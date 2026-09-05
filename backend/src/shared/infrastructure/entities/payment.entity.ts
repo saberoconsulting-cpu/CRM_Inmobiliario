@@ -33,6 +33,15 @@ export class PaymentEntity {
   @Column({ name: 'due_date', type: 'date', nullable: true })
   dueDate: string | null;
 
+  @Column({ name: 'payment_method', length: 30, default: 'otro' })
+  paymentMethod: string;
+
+  @Column({ length: 100, nullable: true })
+  reference: string;
+
+  @Column({ name: 'voucher_url', length: 500, nullable: true })
+  voucherUrl: string;
+
   @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
   paidAt: Date;
 

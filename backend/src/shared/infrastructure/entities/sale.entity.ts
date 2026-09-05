@@ -33,6 +33,10 @@ export class SaleEntity {
   @Column({ type: 'numeric', precision: 14, scale: 2, default: 0 })
   commission: string;
 
+  // Neto que se financia al cliente (cuando se aplica comisión inmobiliaria)
+  @Column({ name: 'financing_base', type: 'numeric', precision: 14, scale: 2, default: 0 })
+  financingBase: string;
+
   @Column({ type: 'text', nullable: true })
   conditions: string;
 

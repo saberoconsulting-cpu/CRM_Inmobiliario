@@ -45,7 +45,11 @@ export class ClientsService {
     campaignId?: number;
     pipelineStatus?: string;
     search?: string;
+    page?: number;
+    limit?: number;
   }) {
+    const page = Math.max(1, filters.page ?? 1);
+    const limit = Math.min(200, Math.max(1, filters.limit ?? 20));
     const qb = this.clientRepo.createQueryBuilder('c');
     if (filters.projectId) qb.where('c.project_interest_id = :projectId', { projectId: filters.projectId });
     if (filters.agentId) qb.andWhere('c.agent_id = :agentId', { agentId: filters.agentId });
@@ -56,7 +60,10 @@ export class ClientsService {
       qb.andWhere('(c.full_name ILIKE :s OR c.phone ILIKE :s OR c.email ILIKE :s)', { s: `%${filters.search}%` });
     }
     qb.orderBy('c.created_at', 'DESC');
-    return qb.getMany();
+    const total = await qb.clone().getCount();
+    qb.skip((page - 1) * limit).take(limit);
+    const items = await qb.getMany();
+    return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
   }
 
   async getOne(id: number) {

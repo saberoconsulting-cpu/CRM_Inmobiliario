@@ -44,6 +44,8 @@ export class PaymentsService {
       agentId,
       type: dto.type,
       amount: String(dto.amount),
+      paymentMethod: dto.paymentMethod || 'otro',
+      reference: dto.reference || undefined,
       dueDate: dto.dueDate || undefined,
       status: dto.dueDate ? 'pendiente' : 'pagado',
       paidAt: dto.dueDate ? undefined : new Date(),
@@ -98,7 +100,11 @@ export class PaymentsService {
     agentId?: number;
     status?: string;
     type?: string;
+    page?: number;
+    limit?: number;
   }) {
+    const page = Math.max(1, filters.page ?? 1);
+    const limit = Math.min(200, Math.max(1, filters.limit ?? 20));
     const qb = this.paymentRepo.createQueryBuilder('p');
     if (filters.projectId) qb.where('p.project_id = :projectId', { projectId: filters.projectId });
     if (filters.lotId) qb.andWhere('p.lot_id = :lotId', { lotId: filters.lotId });
@@ -106,7 +112,10 @@ export class PaymentsService {
     if (filters.status) qb.andWhere('p.status = :status', { status: filters.status });
     if (filters.type) qb.andWhere('p.type = :type', { type: filters.type });
     qb.orderBy('p.created_at', 'DESC');
-    return qb.getMany();
+    const total = await qb.clone().getCount();
+    qb.skip((page - 1) * limit).take(limit);
+    const items = await qb.getMany();
+    return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
   }
 
   async markPaid(paymentId: number) {
@@ -118,6 +127,41 @@ export class PaymentsService {
     const saved = await this.paymentRepo.save(payment);
     this.gateway.emitToAll('payment.created', saved);
     return saved;
+  }
+
+  // Adjuntar/actualizar comprobante (voucher) mediante URL de subida previa
+  async attachVoucher(paymentId: number, url: string) {
+    const payment = await this.paymentRepo.findOne({ where: { id: paymentId } });
+    if (!payment) return null;
+    payment.voucherUrl = url;
+    const saved = await this.paymentRepo.save(payment);
+    this.gateway.emitToAll('payment.updated', saved);
+    return saved;
+  }
+
+  // Métricas de caja: por medio de pago y por mes (monto conciliado= pagado)
+  async summary() {
+    const methods: any = await this.paymentRepo
+      .createQueryBuilder('p')
+      .select('COALESCE(p.payment_method, \'otro\')', 'method')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect('COALESCE(SUM(p.amount),0)', 'monto')
+      .where("p.status = 'pagado'")
+      .groupBy('p.payment_method')
+      .orderBy('monto', 'DESC')
+      .getRawMany();
+    const byMonth: any = await this.paymentRepo
+      .createQueryBuilder('p')
+      .select("to_char(p.created_at, 'YYYY-MM')", 'month')
+      .addSelect('COALESCE(SUM(p.amount),0)', 'monto')
+      .where("p.status = 'pagado'")
+      .groupBy('1')
+      .orderBy('1', 'ASC')
+      .getRawMany();
+    return {
+      methods: (methods || []).map((r: any) => ({ method: r.method, total: Number(r.total || 0), monto: Number(r.monto || 0) })),
+      byMonth: (byMonth || []).map((r: any) => ({ month: r.month, monto: Number(r.monto || 0) })),
+    };
   }
 
   // Alertas: cuotas vencidas y próximas a vencer (7 días)

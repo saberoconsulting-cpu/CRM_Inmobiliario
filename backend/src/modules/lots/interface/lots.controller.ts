@@ -17,6 +17,8 @@ export class LotsController {
     @Query('maxArea') maxArea?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.lotsService.list({
       projectId: projectId ? Number(projectId) : undefined,
@@ -28,6 +30,8 @@ export class LotsController {
       maxArea: maxArea ? Number(maxArea) : undefined,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 

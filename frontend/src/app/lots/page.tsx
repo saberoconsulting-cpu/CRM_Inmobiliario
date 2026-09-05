@@ -4,6 +4,7 @@ import Layout from '@/components/Layout';
 import { Toaster, toast, StatusBadge, EmptyState } from '@/components/ui';
 import { api } from '@/lib/api';
 import LotDetailModal from '@/components/LotDetailModal';
+import { PaginationBar } from '@/components/PaginationBar';
 import { Lot, formatMoney, LOT_STATUS_LABEL, LOT_STATUS_COLOR } from '@/lib/types';
 
 export default function LotesPage() {
@@ -14,16 +15,27 @@ export default function LotesPage() {
   const [project, setProject] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const [buscar, setBuscar] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
   async function load() {
     const q = new URLSearchParams();
     if (statusFilter) q.set('status', statusFilter);
     if (search) q.set('search', search);
     if (project) q.set('projectId', project);
-    api.get<any>(`/lots?${q.toString()}`).then(setLots).catch((e) => toast(e.message, 'err'));
+    q.set('page', String(page));
+    q.set('limit', String(limit));
+    try {
+      const d = await api.get<any>(`/lots?${q.toString()}`);
+      const rows: Lot[] = Array.isArray(d) ? d : (d?.items || []);
+      setLots(rows);
+      setMeta({ total: Number(d?.total ?? rows.length), totalPages: Number(d?.totalPages ?? Math.max(1, Math.ceil((d?.total ?? rows.length) / limit))) });
+    } catch (e: any) { toast(e.message, 'err'); }
   }
-  useEffect(() => { load(); }, [statusFilter, search, project]);
-  useEffect(() => { api.get<any>('/projects').then(setProyectos).catch(() => {}); }, []);
+  useEffect(() => { load(); }, [statusFilter, search, project, page, limit]);
+  useEffect(() => { api.get<any>('/projects').then((d) => setProyectos(d?.items ?? d || [])).catch(() => {}); }, []);
+  useEffect(() => { setPage(1); }, [statusFilter, search, project]);
 
   return (
     <Layout title="Lotes">
@@ -69,6 +81,9 @@ export default function LotesPage() {
           </tbody>
         </table>
         {lots.length===0 && <EmptyState text="No se encontraron lotes con los filtros" />}
+        <div className="p-4">
+          <PaginationBar label="Lotes" page={page} totalPages={meta.totalPages} total={meta.total} limit={limit} setPage={setPage} setLimit={setLimit} />
+        </div>
       </div>
     </Layout>
   );

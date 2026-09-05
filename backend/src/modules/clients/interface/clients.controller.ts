@@ -27,6 +27,8 @@ export class ClientsController {
     @Query('campaignId') campaignId?: string,
     @Query('pipelineStatus') pipelineStatus?: string,
     @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.clientsService.list({
       projectId: projectId ? Number(projectId) : undefined,
@@ -35,6 +37,8 @@ export class ClientsController {
       campaignId: campaignId ? Number(campaignId) : undefined,
       pipelineStatus,
       search,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 

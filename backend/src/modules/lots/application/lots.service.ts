@@ -34,7 +34,11 @@ export class LotsService {
     maxArea?: number;
     minPrice?: number;
     maxPrice?: number;
+    page?: number;
+    limit?: number;
   }) {
+    const page = Math.max(1, filters.page ?? 1);
+    const limit = Math.min(200, Math.max(1, filters.limit ?? 20));
     const qb = this.lotRepo
       .createQueryBuilder('l')
       .leftJoinAndSelect(UserEntity, 'u', 'u.id = l.agent_id')
@@ -56,9 +60,11 @@ export class LotsService {
     if (filters.maxPrice) qb.andWhere('l.price <= :maxPrice', { maxPrice: filters.maxPrice });
 
     qb.orderBy('l.code', 'ASC');
+    const total = await qb.clone().getCount();
+    qb.skip((page - 1) * limit).take(limit);
     // Mapear a objetos planos (evita el doble mapeo de TypeORM)
     const raw = await qb.getRawMany();
-    return raw.map((r) => ({
+    const items = raw.map((r) => ({
       id: Number(r.l_id),
       projectId: Number(r.l_project_id),
       planId: Number(r.l_plan_id),
@@ -73,6 +79,7 @@ export class LotsService {
       agentName: r.agentName || null,
       clientName: r.clientName || null,
     }));
+    return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
   }
 
   // Ficha completa del lote

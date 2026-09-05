@@ -24,6 +24,8 @@ export default function SalesPage() {
   const [agentId, setAgentId] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
   const [totalCuotas, setTotalCuotas] = useState(0);
+  const [applyCommission, setApplyCommission] = useState(false);
+  const [commissionRate, setCommissionRate] = useState(0);
   const [saleDate, setSaleDate] = useState('');
   const [conditions, setConditions] = useState('');
 
@@ -43,9 +45,9 @@ export default function SalesPage() {
     setIsAdmin(role === 'admin' || role === 'superadmin');
     load();
     api.get<any[]>('/projects').then(setProjects).catch(() => {});
-    api.get<any[]>('/clients').then(setClients).catch(() => {});
+    api.get<any[]>('/clients').then((d) => setClients(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
     api.get<any[]>('/users/agents').then(setAgents).catch(() => {});
-    api.get<any[]>('/lots').then(setLots).catch(() => {});
+    api.get<any[]>('/lots').then((d) => setLots(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
   }, [load, role]);
 
   async function registrar() {
@@ -55,9 +57,9 @@ export default function SalesPage() {
     if (!salePrice) return toast('Ingresa el precio de venta', 'err');
     try {
       const lot = lots.find((l) => l.id === Number(lotId));
-      await api.post('/sales', { projectId: projectId || lot?.projectId || 1, lotId: Number(lotId), clientId: clientId || undefined, agentId: Number(agentId), salePrice, totalCuotas: totalCuotas || undefined, saleDate: saleDate || undefined, conditions: conditions || undefined });
+      await api.post('/sales', { projectId: projectId || lot?.projectId || 1, lotId: Number(lotId), clientId: clientId || undefined, agentId: Number(agentId), salePrice, totalCuotas: totalCuotas || undefined, appliesCommission: applyCommission || undefined, commissionRate: applyCommission && commissionRate ? Number(commissionRate) : undefined, saleDate: saleDate || undefined, conditions: conditions || undefined });
       toast('Separación registrada. Queda pendiente de validación.');
-      setOpen(false); setLotId(0); setClientId(0); setConditions(''); setSalePrice(0); setTotalCuotas(0); setSaleDate(''); setAgentId(0);
+      setOpen(false); setLotId(0); setClientId(0); setConditions(''); setSalePrice(0); setTotalCuotas(0); setApplyCommission(false); setCommissionRate(0); setSaleDate(''); setAgentId(0);
       load();
     } catch (e: any) { toast(e.message, 'err'); }
   }
@@ -151,7 +153,7 @@ export default function SalesPage() {
                   {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </Field>
-              <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
+              <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido' && l.sellingStage !== 'vendido' && l.sellingStage !== 'separado').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Cliente"><select className="input" value={clientId} onChange={(e) => setClientId(Number(e.target.value))}><option value={0}>— Sin asignar —</option>{clients.map((c: any) => <option key={c.id} value={c.id}>{(c.fullName || c.full_name || '— Sin nombre —')}</option>)}</select></Field>
@@ -159,6 +161,21 @@ export default function SalesPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Precio de venta (S/) *"><input type="number" className="input" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></Field>
+            <div className="mt-3 rounded-xl bg-canvas p-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={applyCommission} onChange={(e) => setApplyCommission(e.target.checked)} />
+                <span className="font-medium">Vende un agente inmobiliario</span>
+                <span className="text-xs text-slate-400">(comisión se descuenta para financiar cuotas)</span>
+              </label>
+              {applyCommission && (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Field label="Comisión (%)"><input type="number" className="input" min={0} max={100} step={0.1} value={commissionRate || ''} onChange={(e) => setCommissionRate(Number(e.target.value))} /></Field>
+                  <Field label="Base de cuotas (neto)">
+                    <div className="input bg-slate-50 font-semibold">{formatMoney(commissionRate ? Math.max(0, salePrice - (salePrice * commissionRate) / 100) : salePrice)}</div>
+                  </Field>
+                </div>
+              )}
+            </div>
               <Field label="Fecha"><input type="date" className="input" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
             </div>
             <div className="mt-3">

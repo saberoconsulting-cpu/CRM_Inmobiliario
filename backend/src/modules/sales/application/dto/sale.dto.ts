@@ -15,8 +15,16 @@ export class CreateSaleDto {
   @IsNotEmpty()
   agentId!: number;
 
+  @IsOptional()
   @IsNumber()
   salePrice!: number;
+
+  // Comisión inmobiliaria (opcional y configurable por lote)
+  appliesCommission?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  commissionRate?: number;
 
   // Fraccionamiento opcional
   @IsOptional()
