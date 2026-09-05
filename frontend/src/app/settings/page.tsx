@@ -34,8 +34,8 @@ export default function SettingsPage() {
   return (
     <Layout title="Configuración">
       <Toaster />
-      <div className="space-y-5 xl:grid xl:max-w-6xl xl:grid-cols-2 xl:items-start xl:gap-5">
-        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+      <div className="w-full space-y-5">
+        <div className="w-full space-y-5">
           <div className="card">
             <h3 className="font-semibold mb-1">Datos de la empresa</h3>
             <p className="text-sm mb-4" style={{ color: '#6B7280' }}>Identidad mostrada en la aplicación.</p>

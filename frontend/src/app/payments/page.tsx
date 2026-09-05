@@ -34,6 +34,7 @@ export default function PaymentsPage() {
   const [reference, setReference] = useState('');
   const [voucher, setVoucher] = useState<File | null>(null);
   const [voucherUrl, setVoucherUrl] = useState('');
+  const payCanMark = (() => { try { const m = JSON.parse(localStorage.getItem('crm_user') || '{}'); return m.role === 'admin' || m.role === 'superadmin'; } catch { return false; } })();
 
   const load = useCallback(async () => {
     try {
@@ -149,7 +150,7 @@ export default function PaymentsPage() {
                     <td className="td-base capitalize">{TYPE_LABEL[p.type] || p.type}</td>
                     <td className="td-base font-medium">Lote {p.lotId}</td>
                     <td className="td-base">{(p as any).paymentMethod ? <span className="badge bg-slate-100 text-slate-600 capitalize mr-1">{(p as any).paymentMethod}</span> : null}{formatMoney(p.amount)}{(p as any).voucherUrl ? <> <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver voucher</a></> : null}</td>
-                    <td className="td-base">{st(p)}</td>
+                    <td className="td-base">{st(p)}{p.status === 'pendiente' && (p as any).voucherUrl && payCanMark && <button className="btn-primary !h-6 !px-2 text-xs ml-2 align-middle" onClick={(e) => { e.stopPropagation(); if (!confirm(`¿Confirmar como pagado el voucher del lote ${p.lotId}?`)) return; api.post(`/payments/mark-paid/${p.id}`).then(() => { toast('Pago marcado como pagado'); load(); }).catch((err: any) => toast(err.message, 'err')); }}>Marcar pagado</button>}</td>
                     <td className="td-base">{formatDate(p.dueDate)}</td>
                     <td className="td-base">{formatDate(p.paidAt)}</td>
                   </tr>

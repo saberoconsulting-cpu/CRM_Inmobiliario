@@ -125,7 +125,7 @@ export default function ProjectPage() {
         ))}
 
         {/* Plano interactivo */}
-        <div className="xl:col-span-2">
+        <div className="xl:col-span-3">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold">Plano interactivo</h3>
             <div className="flex gap-2">

@@ -150,12 +150,12 @@ export default function SalesPage() {
             {/* Lote y responsable */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Proyecto">
-                <select className="input" value={projectId} onChange={(e) => setProjectId(Number(e.target.value))}>
+                <select className="input" value={projectId} onChange={(e) => { setProjectId(Number(e.target.value)); setLotId(0); setSalePrice(0); }}>
                   <option value={0}>Auto / Todos</option>
                   {projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </Field>
-              <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido' && l.sellingStage !== 'vendido' && l.sellingStage !== 'separado').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
+              <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido' && l.sellingStage !== 'vendido' && l.sellingStage !== 'separado' && (!projectId || Number(l.projectId) === Number(projectId))).map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
