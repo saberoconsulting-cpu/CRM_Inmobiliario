@@ -42,6 +42,24 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
   const imgX = (SVG_W - imgW) / 2;
   const imgY = (SVG_H - imgH) / 2;
 
+  const insideBlock = (x: number, y: number, pts: Point[]) => {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  };
+  // Conteo robusto: coincidencia por blockId o geometría contenida en la manzana.
+  const countLotsIn = (b: Block) => lots.filter((l) => {
+    if (l.blockId === b.id) return true;
+    if (l.blockId != null) return false; // está en otra manzana
+    const cx = l.points && l.points.length ? l.points.reduce((s, p) => s + p.x, 0) / l.points.length : NaN;
+    const cy = l.points && l.points.length ? l.points.reduce((s, p) => s + p.y, 0) / l.points.length : NaN;
+    return !isNaN(cx) && b.points.length > 2 && insideBlock(cx, cy, b.points);
+  }).length;
+
   const addNode = (e: any) => { if (mode !== 'none') setDraft((p) => [...p, toSvg(e)]); };
   const closeShape = () => { if (draft.length < 3) return toast('Dibuja al menos 3 puntos', 'err'); setMode('none'); };
 
@@ -91,6 +109,32 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
   }
 
   const centroid = (pts: Point[]) => pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
+  // Punto interior para la etiqueta de manzana dentro del polígono (aunque sea cóncavo)
+  const labelPoint = (b: Block): Point => {
+    const pts = b.points || [];
+    if (pts.length < 3) return centroid(pts);
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    const yMin = Math.min(...ys), yMax = Math.max(...ys);
+    let best: { w: number; x: number; y: number } | null = null;
+    for (let s = 1; s <= 10; s++) {
+      const y = yMin + ((yMax - yMin) * s) / 11;
+      const cross: number[] = [];
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const a = pts[i], z = pts[j];
+        if ((a.y > y) === (z.y > y)) continue;
+        const x = a.x + ((y - a.y) * (z.x - a.x)) / (z.y - a.y);
+        cross.push(x);
+      }
+      cross.sort((n, m) => n - m);
+      for (let k = 0; k + 1 < cross.length; k += 2) {
+        const left = cross[k], right = cross[k + 1];
+        const w = right - left;
+        if (!best || w > best.w) best = { w, x: (left + right) / 2, y };
+      }
+    }
+    return best ? { x: best.x, y: best.y } : centroid(pts);
+  };
+
   const inBlk = (b: Block, p: Point) => {
     let inside = false;
     for (let i = 0, j = b.points.length - 1; i < b.points.length; j = i++) {
@@ -127,14 +171,17 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
         <div className="lg:col-span-2 card overflow-hidden !p-0 relative bg-slate-100" style={{ aspectRatio: '1000 / 800' }}>
           <svg ref={svgRef} viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full h-full cursor-crosshair" onClick={addNode}>
             {imgUrl && <image href={imgUrl} x={imgX} y={imgY} width={imgW} height={imgH} preserveAspectRatio="xMidYMid meet" />}
-            {blocks.map((b) => { const c = centroid(b.points);
+            {blocks.map((b) => { const c = labelPoint(b);
               const tone = ['rgba(250,204,21,0.18)', 'rgba(96,165,250,0.16)', 'rgba(52,211,153,0.16)', 'rgba(192,132,252,0.16)', 'rgba(251,146,60,0.16)'];
               const t = tone[b.id % tone.length];
               const hi = selectedBlk === b.id && mode === 'none';
               return (
               <g key={b.id} onClick={(e) => { if (mode === 'none') { e.stopPropagation(); setSelectedBlk(selectedBlk === b.id ? null : b.id); } }} style={{ pointerEvents: mode === 'lot' ? 'none' : 'auto' }}>
                 <polygon points={b.points.map((p) => `${p.x},${p.y}`).join(' ')} fill={hi ? 'rgba(227,6,32,0.25)' : t} stroke={hi ? '#E30620' : '#64748b'} strokeWidth={hi ? 2.5 : 1.2} />
-                <text x={c.x} y={c.y} fontSize={24} fontWeight={700} textAnchor="middle" dominantBaseline="central" fill="#334155">{b.name}</text>
+                <text x={c.x} y={c.y} fontSize={26} fontWeight={800} textAnchor="middle" dominantBaseline="central"
+                  fill="#FFFFFF"
+                  stroke="#171717" strokeWidth={4} paintOrder="stroke" strokeLinejoin="round"
+                  style={{ pointerEvents: 'none', letterSpacing: '.5px' }}>{b.name}</text>
               </g>
             ); })}
             {lots.map((lt) => { const c = centroid(lt.points); return (
@@ -173,15 +220,27 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
           )}
           <div className="card">
             <h4 className="font-semibold mb-2">Manzanas ({blocks.length})</h4>
-            <ul className="space-y-1 text-sm">
+            <ul className="space-y-2 text-sm">
               {blocks.map((b) => (
-                <li key={b.id} className="flex items-center justify-between rounded px-1 py-1" style={{ background: selectedBlk === b.id ? '#FFF1F3' : 'transparent' }}>
-                  <button onClick={() => setSelectedBlk(selectedBlk === b.id ? null : b.id)} className="font-medium text-left min-w-0 truncate">Manzana {b.name} <span style={{ color: '#94a3b8' }}>({lots.filter((x) => x.blockId === b.id).length} lotes)</span></button>
-                  <span className="flex gap-1 shrink-0">
-                    <button className="btn-neutral !h-6 !px-2 text-xs" onClick={() => renameBlock(b)}>Nombrar</button>
-                    <button className="btn-neutral !h-6 !px-2 text-xs" onClick={() => dupBlock(b)}>Duplicar</button>
-                    <button className="btn-danger !h-6 !px-2 text-xs" onClick={() => delBlock(b)}>Eliminar</button>
-                  </span>
+                <li key={b.id} className="rounded-lg border p-2" style={{ borderColor: '#E5E7EB', background: selectedBlk === b.id ? '#FFF1F3' : '#fff' }}>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSelectedBlk(selectedBlk === b.id ? null : b.id)}
+                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left font-bold"
+                      style={{ color: '#171717' }}>
+                      <span className="grid place-items-center w-7 h-7 rounded-md text-white font-bold shrink-0" style={{ background: selectedBlk === b.id ? '#E30620' : '#171717' }}>{b.name}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate">Manzana {b.name}</span>
+                        <span className="block text-xs font-medium" style={{ color: countLotsIn(b) ? '#067a46' : '#94a3b8' }}>
+                          {countLotsIn(b)} {countLotsIn(b) === 1 ? 'lote' : 'lotes'}
+                        </span>
+                      </span>
+                    </button>
+                    <span className="flex flex-col sm:flex-row gap-1 shrink-0">
+                      <button className="btn-neutral !h-6 !px-2 text-xs" title="Cambiar letra/nombre" onClick={() => renameBlock(b)}>Nombrar</button>
+                      <button className="btn-neutral !h-6 !px-2 text-xs" title="Duplicar manzana" onClick={() => dupBlock(b)}>Duplicar</button>
+                      <button className="btn-danger !h-6 !px-2 text-xs" title="Eliminar manzana" onClick={() => delBlock(b)}>Eliminar</button>
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

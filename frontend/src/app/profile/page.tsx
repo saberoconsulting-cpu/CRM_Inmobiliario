@@ -127,6 +127,8 @@ export default function ProfilePage() {
           )}
         </div>
 
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start">
+        <div className="min-w-0 space-y-5">
         {/* Selector: Datos / Rendimiento */}
         <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
           {([['info', 'Datos y contacto'], ['stats', 'Rendimiento y negocio']] as const).map(([k, label]) => (
@@ -185,6 +187,42 @@ export default function ProfilePage() {
             ? <AgentView d={agi} />
             : <GeneralView d={gen} />
         )}
+        </div>
+
+        {/* Panel derecho: evita el vacío y es uso rápido */}
+        <aside className="space-y-4 xl:sticky xl:top-6">
+          <div className="card">
+            <h3 className="font-semibold mb-3">Accesos rápidos</h3>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <a className="btn-neutral justify-center" href="/projects">Proyectos</a>
+              <a className="btn-neutral justify-center" href="/sales">Ventas</a>
+              <a className="btn-neutral justify-center" href="/payments">Pagos</a>
+              <a className="btn-neutral justify-center" href="/lots">Lotes</a>
+              {(role === 'admin' || role === 'superadmin') && <a className="btn-neutral justify-center" href="/settings">Configuración</a>}
+            </div>
+          </div>
+          <div className="card">
+            <h3 className="font-semibold mb-3">Resumen</h3>
+            <div className="rounded-lg bg-canvas p-3"><span className="label">Puesto</span><b className="capitalize">{role === 'superadmin' ? 'Administración' : role}</b></div>
+            {role === 'agent' && (
+              <div className="mt-2 space-y-2 text-sm">
+                <div className="rounded-lg bg-canvas p-3"><span className="label">Comisión</span><b>{Number(me?.commissionRate || 0)}%</b></div>
+                <div className="rounded-lg bg-canvas p-3 flex justify-between"><span className="label">Meta lotes/mes</span><b>{me?.monthlyGoalLots || 0}</b></div>
+                <div className="rounded-lg bg-canvas p-3 flex justify-between"><span className="label">Meta S/ /mes</span><b>{Number(me?.monthlyGoalAmount || 0).toLocaleString()}</b></div>
+              </div>
+            )}
+          </div>
+          {(me?.phone?.trim() || me?.whatsapp?.trim()) && (
+            <div className="card">
+              <h3 className="font-semibold mb-2 text-sm">Contacto</h3>
+              <div className="text-xs space-y-2">
+                {me.phone?.trim() && <div>📞 <a className="hover:underline" href={`tel:${me.phone}`}>{me.phone}</a></div>}
+                {me.whatsapp?.trim() && <div>💬 <a className="hover:underline" href={`https://wa.me/${me.whatsapp.replace(/[^\d]/g, '')}`} target="_blank" rel="noreferrer">{me.whatsapp}</a></div>}
+              </div>
+            </div>
+          )}
+        </aside>
+        </div>
       </div>
     </Layout>
   );

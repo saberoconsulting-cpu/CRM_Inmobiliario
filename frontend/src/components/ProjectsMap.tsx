@@ -11,20 +11,7 @@ interface Props {
 
 const DEFAULT_CENTER: [number, number] = [-77.0369, -12.0464]; // Lima
 
-const OSM_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '© OpenStreetMap',
-    },
-  },
-  layers: [
-    { id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 },
-  ],
-};
+const DEMO = 'https://demotiles.maplibre.org/style.json';
 
 export default function ProjectsMap({ projects, onOpen }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -97,14 +84,16 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
     if (!ref.current || map.current) return;
     const m = new maplibregl.Map({
       container: ref.current,
-      style: OSM_STYLE,
+      style: DEMO,
       center: DEFAULT_CENTER,
       zoom: 5,
     });
     m.dragPan && m.setMaxZoom(18);
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-    m.on('load', () => { m.resize(); setTimeout(() => renderMarkers(m), 60); });
+    m.on('load', () => { m.resize(); renderMarkers(m); });
     map.current = m;
+    // Asegurar que los marcadores se dibujen aunque el estilo/tiles tarde en emitir "load".
+    setTimeout(() => renderMarkers(m), 800);
     return () => { map.current?.remove(); map.current = null; markersRef.current = []; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -117,13 +106,25 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
   }, [projects]);
 
   return (
-    <div className="relative w-full h-full min-h-[420px] rounded-2xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
-      <div ref={ref} className="absolute inset-0" />
-      {projects.length > 0 && !projects.some((p) => Number(p.latitude)) && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-full px-4 py-2">
-          Ningún proyecto tiene latitud/longitud guardada.
-        </div>
-      )}
+    <div className="flex w-full h-full min-h-[420px] gap-2">
+      {/* Lista lateral: proyectos siempre visibles para moverse/abrir */}
+      <div className="w-56 shrink-0 rounded-xl border bg-white p-2 overflow-y-auto space-y-2" style={{ borderColor: '#E5E7EB' }}>
+        {projects.length === 0 && <p className="text-xs text-slate-400 p-1">Sin proyectos</p>}
+        {projects.map((p) => (
+          <button key={p.id} onClick={() => onOpen(p.id)} className="w-full text-left rounded-lg p-2 hover:bg-slate-50 border" style={{ borderColor: '#F0F1F3' }}>
+            <div className="text-sm font-semibold truncate">{p.name}</div>
+            <div className="text-[11px] text-slate-500 truncate">{p.location || 'sin dirección'}</div>
+            <div className="text-[10px] mt-1" style={{ color: Number(p.latitude) && Number(p.longitude) ? '#067a46' : '#b45309' }}>{Number(p.latitude) ? '✓ ubicación' : 'pendiente ubicación'}</div>
+          </button>
+        ))}
+      </div>
+      {/* Ventana de mapa */}
+      <div className="relative flex-1 min-w-0 rounded-xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
+        <div ref={ref} className="absolute inset-0" />
+        {projects.length > 0 && !projects.some((p) => Number(p.latitude)) && (
+          <p className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/70 text-white text-[11px] px-3 py-1">Los proyectos sin lat/long se listan a la izquierda; edítalos para ubicarlos en el mapa.</p>
+        )}
+      </div>
     </div>
   );
 }

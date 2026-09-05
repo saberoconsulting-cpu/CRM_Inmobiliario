@@ -18,6 +18,7 @@ import { ExpenseEntity } from './shared/infrastructure/entities/expense.entity';
 import { LotStatusHistoryEntity } from './shared/infrastructure/entities/lot-status-history.entity';
 import { AuditLogEntity } from './shared/infrastructure/entities/audit-log.entity';
 import { SaleInstallmentEntity } from './shared/infrastructure/entities/sale-installment.entity';
+import { AppSettingEntity } from './shared/infrastructure/entities/app-setting.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -28,6 +29,7 @@ import { CampaignsModule } from './modules/campaigns/campaigns.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { FinancesModule } from './modules/finances/finances.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { DashboardsModule } from './modules/dashboards/dashboards.module';
 
 @Module({
@@ -47,6 +49,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
         SaleEntity, PaymentEntity, FinancialTransactionEntity, ExpenseEntity,
         LotStatusHistoryEntity, AuditLogEntity,
         SaleInstallmentEntity,
+        AppSettingEntity,
       ],
       synchronize: false,
       logging: false,
@@ -61,6 +64,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
     SalesModule,
     PaymentsModule,
     FinancesModule,
+    SettingsModule,
     DashboardsModule,
   ],
 })

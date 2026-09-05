@@ -22,6 +22,8 @@ export default function PaymentsPage() {
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [cash, setCash] = useState<any>({ methods: [], byMonth: [] });
   const [lots, setLots] = useState<any[]>([]);
+  const [payProjects, setPayProjects] = useState<any[]>([]);
+  const [payProjectId, setPayProjectId] = useState(0);
   const [open, setOpen] = useState(false);
   const [lotId, setLotId] = useState(0);
   const [amount, setAmount] = useState(0);
@@ -51,7 +53,8 @@ export default function PaymentsPage() {
   useEffect(() => {
     load();
     api.get<{ overdue: P[] }>('/payments/alerts').then((a) => setOverdue(a?.overdue || [])).catch(() => setOverdue([]));
-    api.get<any[]>('/lots').then((d) => setLots(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
+    api.get<any[]>('/lots?limit=200').then((d) => setLots(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
+    api.get<any>('/projects').then((d) => setPayProjects(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {});
   }, [load]);
 
   useEffect(() => { setPage(1); }, [status]);
@@ -59,6 +62,8 @@ export default function PaymentsPage() {
   useEffect(() => {
     api.get<any>('/payments/caja').then(setCash).catch(() => {});
   }, []);
+
+  const availableLots = payProjectId ? lots.filter((l: any) => Number(l.projectId) === Number(payProjectId)) : lots;
 
   async function registrar() {
     if (!lotId) return toast('Selecciona un lote', 'err');
@@ -162,10 +167,16 @@ export default function PaymentsPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
           <div className="relative bg-white rounded-2xl w-full max-w-md p-6">
             <h3 className="font-semibold mb-5" style={{ fontSize: 17 }}>Registrar pago</h3>
+            <Field label="Proyecto">
+              <select className="input" value={payProjectId} onChange={(e) => { setPayProjectId(Number(e.target.value)); setLotId(0); }}>
+                <option value={0}>Selecciona el proyecto…</option>
+                {payProjects.map((pr: any) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+              </select>
+            </Field>
             <Field label="Lote">
               <select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}>
-                <option value={0}>Selecciona…</option>
-                {lots.map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}
+                <option value={0}>{payProjectId ? 'Selecciona el lote…' : 'Primero elige un proyecto'}</option>
+                {availableLots.map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}
               </select>
             </Field>
             <Field label="Tipo">

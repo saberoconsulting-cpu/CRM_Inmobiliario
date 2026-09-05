@@ -86,6 +86,25 @@ export class DashboardsService {
       .where('e.expense_date >= :weekStart', { weekStart })
       .getCount();
 
+    let rankings = agentRanking;
+    // Si el equipo no ha registrado todavía ventas formales, igual vemos avance
+    // comercial por agente basado en los importes pagados (Yape/banco/efectivo).
+    if (!rankings?.length) {
+      const fallback = await this.paymentRepo
+        .createQueryBuilder('p')
+        .leftJoinAndSelect(UserEntity, 'u', 'u.id = p.agent_id')
+        .where("p.status = 'pagado'")
+        .select('p.agent_id', 'agentId')
+        .addSelect('u.name', 'agentName')
+        .addSelect('COUNT(*)', 'salesCount')
+        .addSelect('SUM(p.amount)', 'salesAmount')
+        .addSelect('0', 'commission')
+        .groupBy('p.agent_id')
+        .addGroupBy('u.name')
+        .getRawMany();
+      rankings = fallback;
+    }
+
     return {
       cards: {
         leadsMonth: Number(leadsMonth), salesMonth: Number(salesMonth),
@@ -93,9 +112,9 @@ export class DashboardsService {
       },
       lots: lotMap,
       salesByProject: salesByProject.map((r) => ({ projectId: r.projectId, total: Number(r.total), amount: Number(r.amount) })),
-      agentRanking: agentRanking.map((r) => ({
-        agentId: r.agentId, agentName: r.agentName, salesCount: Number(r.salesCount),
-        salesAmount: Number(r.salesAmount), commission: Number(r.commission),
+      agentRanking: (rankings || []).map((r) => ({
+        agentId: r.agentId, agentName: r.agentName || (r.agentId ? `Agente #${r.agentId}` : 'Sin agente'), salesCount: Number(r.salesCount),
+        salesAmount: Number(r.salesAmount), commission: Number(r.commission || 0),
       })),
       recentSales,
       recentPayments,

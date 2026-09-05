@@ -101,20 +101,21 @@ export default function ClientsPage() {
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((c) => {
-                  const ps = (c as any).pipelineStatus || c.pipeline_status;
+                  const ps = (c as any).pipelineStatus || c.pipeline_status || 'nuevo';
                   const pc = PCOLOR[ps] || ['#F3F4F6', '#374151'];
+                  const created = (c as any).createdAt || c.created_at;
                   return (
                     <tr key={c.id}>
                       <td className="td-base font-medium">{(c as any).fullName || c.full_name}</td>
                       <td className="td-base">{c.phone || c.email || '—'}</td>
-                      <td className="td-base capitalize">{c.source || 'web'}</td>
+                      <td className="td-base capitalize">{(c as any).source || c.source || 'web'}</td>
                       <td className="td-base">
-                        <select className="input !h-7 !w-40 !text-xs" value={(c as any).pipelineStatus || c.pipeline_status} onChange={(e) => mover(c, e.target.value)}>
+                        <select className="input !h-7 !w-40 !text-xs" value={ps} onChange={(e) => mover(c, e.target.value)}>
                           {Object.keys(PIPELINE).map((k) => <option key={k} value={k}>{PIPELINE[k]}</option>)}
                         </select>
                       </td>
-                      <td className="td-base"><span className="badge" style={{ background: pc[0], color: pc[1] }}>{PIPELINE[c.pipeline_status]}</span></td>
-                      <td className="td-base">{formatDate(c.created_at)}</td>
+                      <td className="td-base"><span className="badge" style={{ background: pc[0], color: pc[1] }}>{PIPELINE[ps] || ps}</span></td>
+                      <td className="td-base">{formatDate(created)}</td>
                     </tr>
                   );
                 })}
