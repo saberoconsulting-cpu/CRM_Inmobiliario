@@ -40,8 +40,19 @@ export default function GeneralView({ d }: { d: FormattedDashboard | null }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="card"><h3 className="font-semibold mb-2">Últimas ventas</h3>
-          {d.recentSales.length? <ul className="divide-y text-sm">{d.recentSales.map((s:any,i:number)=>(
-            <li key={i} className="py-2 flex justify-between gap-2"><span className="text-slate-600 truncate">Venta · {formatMoney(s.salePrice)}</span><b>{formatMoney(s.salePrice)}</b></li>))}</ul> : <p className="text-slate-400 text-sm">Sin ventas</p>}
+          {d.recentSales.length ? (
+            <ul className="divide-y text-sm">
+              {d.recentSales.map((s: any, i: number) => {
+                const kind = s.fromPayment ? (s.type ? `Pago · ${s.type}` : 'Pago confirmado') : 'Venta';
+                return (
+                  <li key={i} className="py-2 flex justify-between gap-2">
+                    <span className="text-slate-600 capitalize truncate">{kind}</span>
+                    <b>{formatMoney(s.salePrice)}</b>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : <p className="text-slate-400 text-sm">Sin ventas</p>}
         </div>
         <div className="card"><h3 className="font-semibold mb-2">Últimos pagos</h3>
           {d.recentPayments.length? <ul className="divide-y text-sm">{d.recentPayments.map((p:any,i:number)=>(

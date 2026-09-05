@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import { Toaster, toast, StatCard, LegendChips, EmptyState } from '@/components/ui';
+import { Toaster, toast, StatCard, LegendChips } from '@/components/ui';
 import { api, getToken, uploadFile } from '@/lib/api';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 import InteractivePlan from '@/components/interactive-plan/InteractivePlan';
@@ -22,6 +22,9 @@ export default function ProjectPage() {
   const [blockFilter, setBlockFilter] = useState<number | null>(null);
   const [selectedLot, setSelectedLot] = useState<number | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [search, setSearch] = useState('');
+  const [perPage, setPerPage] = useState(10);
+  const [lotPage, setLotPage] = useState(0);
 
   useEffect(() => {
     let role = 'agent';
@@ -143,25 +146,107 @@ export default function ProjectPage() {
 
         {/* Tabla de lotes */}
         <div className="flex flex-col gap-4">
-          <div className="card flex-1 max-h-[560px] overflow-auto">
-            <h3 className="font-semibold mb-3">Lotes {blockFilter ? `(filtrado manzana)` : ''}</h3>
-            <table className="table-base">
+          <div className="card flex-1">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="font-semibold">Lotes {blockFilter ? '(filtrado manzana)' : ''}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  className="input !w-48 !h-8 text-sm"
+                  placeholder="Buscar lote (ej. A-02)…"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setLotPage(0); }}
+                />
+                <select
+                  className="input !h-8 text-sm !w-auto"
+                  value={perPage}
+                  onChange={(e) => { setPerPage(Number(e.target.value)); setLotPage(0); }}
+                >
+                  {[10, 20, 50].map((n) => <option key={n} value={n}>Mostrar {n}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <table className="table-base" style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+              <colgroup>
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '28%' }} />
+                <col style={{ width: '30%' }} />
+              </colgroup>
               <thead><tr>
-                <th className="th-base">Código</th><th className="th-base">Área</th>
-                <th className="th-base">Precio</th><th className="th-base">Estado</th>
+                <th className="th-base" style={{ textAlign: 'left' }}>Código</th>
+                <th className="th-base" style={{ textAlign: 'left' }}>Área</th>
+                <th className="th-base" style={{ textAlign: 'left' }}>Precio</th>
+                <th className="th-base" style={{ textAlign: 'left' }}>Estado</th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
-                {visibleLots.map((l) => (
-                  <tr key={l.id} onClick={() => setSelectedLot(l.id)} className="cursor-pointer hover:bg-slate-50">
-                    <td className="td-base font-medium">{l.code}</td>
-                    <td className="td-base">{l.areaM2}</td>
-                    <td className="td-base">{formatMoney(l.price)}</td>
-                    <td className="td-base"><span className="badge" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span></td>
-                  </tr>
-                ))}
+                {(() => {
+                  const q = search.trim().toLowerCase();
+                  const filtered = q ? visibleLots.filter((l) => String(l.code || '').toLowerCase().includes(q)) : visibleLots;
+                  const pages = Math.max(1, Math.ceil(filtered.length / perPage));
+                  const page = Math.min(lotPage, pages - 1);
+                  const frame = filtered.slice(page * perPage, page * perPage + perPage);
+
+                  const nav: any[] = [];
+                  const show: number[] = [];
+                  for (let i = 1; i <= pages; i++) {
+                    if (i === 1 || i === pages || Math.abs(i - (page + 1)) <= 1) show.push(i);
+                  }
+                  show.forEach((n, idx) => {
+                    if (idx > 0 && n > show[idx - 1] + 1) {
+                      nav.push(<span key={`ell-${n}`} className="px-1 text-slate-400">…</span>);
+                    }
+                    nav.push(
+                      <button
+                        key={String(n)}
+                        onClick={() => setLotPage(n - 1)}
+                        className={`${n === page + 1 ? 'btn-primary' : 'btn-neutral'} !h-7 !min-w-7 !px-2 text-xs`}
+                      >{n}</button>
+                    );
+                  });
+
+                  return (
+                    <>
+                      {frame.map((l) => (
+                        <tr key={l.id} onClick={() => setSelectedLot(l.id)} className="cursor-pointer hover:bg-slate-50">
+                          <td className="td-base font-medium" style={{ textAlign: 'left' }}>{l.code}</td>
+                          <td className="td-base" style={{ textAlign: 'left' }}>{l.areaM2} m²</td>
+                          <td className="td-base" style={{ textAlign: 'left' }}>{formatMoney(l.price)}</td>
+                          <td className="td-base" style={{ textAlign: 'left' }}>
+                            <span className="badge" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span>
+                          </td>
+                        </tr>
+                      ))}
+                      {filtered.length === 0 && (
+                        <tr><td colSpan={4} className="td-base text-slate-400 text-center">Sin resultados para mostrar</td></tr>
+                      )}
+                      {filtered.length > 0 && (
+                        <tr>
+                          <td colSpan={4} className="td-base !p-0">
+                            <div className="mt-1 flex flex-col gap-2 border-t pt-2 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: '#EEF0F2' }}>
+                              <span className="text-xs text-slate-500">Mostrando {filtered.length === 0 ? 0 : page * perPage + 1}–{Math.min(filtered.length, (page + 1) * perPage)} de {filtered.length} lotes</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  className="btn-neutral !h-7 !px-2 text-xs"
+                                  disabled={page <= 0}
+                                  onClick={() => setLotPage((v) => Math.max(0, v - 1))}
+                                >‹ Anterior</button>
+                                {nav}
+                                <button
+                                  className="btn-neutral !h-7 !px-2 text-xs"
+                                  disabled={page >= pages - 1}
+                                  onClick={() => setLotPage((v) => Math.min(pages - 1, v + 1))}
+                                >Siguiente ›</button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
-            {visibleLots.length === 0 && <EmptyState text="Sin lotes para mostrar" />}
           </div>
         </div>
       </div>

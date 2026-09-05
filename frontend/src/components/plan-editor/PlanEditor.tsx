@@ -18,6 +18,8 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
   const [selectedBlk, setSelectedBlk] = useState<number | null>(null);
   const [lotInfo, setLotInfo] = useState<{ code: string; area: number; price: number }>({ code: '', area: 0, price: 0 });
   const dim = useRef({ w: SVG_W, h: SVG_H });
+  const [lotPage, setLotPage] = useState(0);
+
 
   const load = useCallback(async () => {
     try {
@@ -197,6 +199,13 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
           {!imgUrl && <div className="absolute inset-0 grid place-items-center text-sm" style={{ color: '#6B7280' }}>Sube la imagen del plano para dibujar sobre ella.</div>}
         </div>
         <div className="space-y-4">
+          {mode === 'none' && (
+            <div className="card">
+              <p className="text-xs" style={{ color: '#6B7280' }}>
+                Usa los botones <b>Manzana</b> / <b>Lote</b> para dibujar sobre el plano y guarda la forma. Las listas de manzanas y lotes están debajo del plano.
+              </p>
+            </div>
+          )}
           {mode !== 'none' && (
             <div className="card">
               <h4 className="font-semibold mb-3">Guardar {mode === 'block' ? 'manzana' : 'lote'}</h4>
@@ -218,45 +227,79 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
               <button className="btn-neutral w-full mt-2" onClick={closeShape}>Cerrar forma</button>
             </div>
           )}
-          <div className="card">
-            <h4 className="font-semibold mb-2">Manzanas ({blocks.length})</h4>
-            <ul className="space-y-2 text-sm">
-              {blocks.map((b) => (
-                <li key={b.id} className="rounded-lg border p-2" style={{ borderColor: '#E5E7EB', background: selectedBlk === b.id ? '#FFF1F3' : '#fff' }}>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => setSelectedBlk(selectedBlk === b.id ? null : b.id)}
-                      className="flex items-center gap-2.5 flex-1 min-w-0 text-left font-bold"
-                      style={{ color: '#171717' }}>
-                      <span className="grid place-items-center w-7 h-7 rounded-md text-white font-bold shrink-0" style={{ background: selectedBlk === b.id ? '#E30620' : '#171717' }}>{b.name}</span>
-                      <span className="min-w-0">
-                        <span className="block truncate">Manzana {b.name}</span>
-                        <span className="block text-xs font-medium" style={{ color: countLotsIn(b) ? '#067a46' : '#94a3b8' }}>
-                          {countLotsIn(b)} {countLotsIn(b) === 1 ? 'lote' : 'lotes'}
-                        </span>
+        </div>
+      </div>
+
+      {/* Manzanas y lotes: debajo del plano, lado a lado */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="card min-w-0">
+          <h4 className="font-semibold mb-2">Manzanas ({blocks.length})</h4>
+          <ul className="space-y-2 text-sm">
+            {blocks.map((b) => (
+              <li key={b.id} className="rounded-lg border p-2" style={{ borderColor: '#E5E7EB', background: selectedBlk === b.id ? '#FFF1F3' : '#fff' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => setSelectedBlk(selectedBlk === b.id ? null : b.id)}
+                    className="flex items-center gap-2.5 flex-1 min-w-0 text-left font-bold"
+                    style={{ color: '#171717' }}>
+                    <span className="grid place-items-center w-7 h-7 rounded-md text-white font-bold shrink-0" style={{ background: selectedBlk === b.id ? '#E30620' : '#171717' }}>{b.name}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate">Manzana {b.name}</span>
+                      <span className="block text-xs font-medium" style={{ color: countLotsIn(b) ? '#067a46' : '#94a3b8' }}>
+                        {countLotsIn(b)} {countLotsIn(b) === 1 ? 'lote' : 'lotes'}
                       </span>
-                    </button>
-                    <span className="flex flex-col sm:flex-row gap-1 shrink-0">
-                      <button className="btn-neutral !h-6 !px-2 text-xs" title="Cambiar letra/nombre" onClick={() => renameBlock(b)}>Nombrar</button>
-                      <button className="btn-neutral !h-6 !px-2 text-xs" title="Duplicar manzana" onClick={() => dupBlock(b)}>Duplicar</button>
-                      <button className="btn-danger !h-6 !px-2 text-xs" title="Eliminar manzana" onClick={() => delBlock(b)}>Eliminar</button>
                     </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="card">
-            <h4 className="font-semibold mb-2">Lotes ({lots.length})</h4>
-            <ul className="space-y-1 text-sm max-h-56 overflow-auto">
-              {lots.map((l) => (
-                <li key={l.id} className="flex items-center justify-between rounded px-1 py-1">
-                  <span className="font-medium">{l.code} <span style={{ color: '#94a3b8' }}>{l.areaM2} m² · {formatMoney(l.price)}</span></span>
+                  </button>
+                  <span className="flex flex-col sm:flex-row gap-1 shrink-0">
+                    <button className="btn-neutral !h-6 !px-2 text-xs" title="Cambiar letra/nombre" onClick={() => renameBlock(b)}>Nombrar</button>
+                    <button className="btn-neutral !h-6 !px-2 text-xs" title="Duplicar manzana" onClick={() => dupBlock(b)}>Duplicar</button>
+                    <button className="btn-danger !h-6 !px-2 text-xs" title="Eliminar manzana" onClick={() => delBlock(b)}>Eliminar</button>
+                  </span>
+                </div>
+              </li>
+            ))}
+            {blocks.length === 0 && <li className="text-xs" style={{ color: '#94a3b8' }}>Aún no hay manzanas dibujadas.</li>}
+          </ul>
+        </div>
+
+        <div className="card min-w-0">
+          <h4 className="font-semibold mb-2">Lotes ({lots.length})</h4>
+          <ul className="space-y-1 text-sm">
+            {(() => {
+              const PER = 15;
+              const total = lots.length;
+              const pageMax = Math.max(0, Math.ceil(total / PER) - 1);
+              const page = Math.min(lotPage, pageMax);
+              const start = page * PER;
+              const slice = lots.slice(start, start + PER);
+              return slice.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-3 rounded px-2 py-1.5 hover:bg-slate-50">
+                  <span className="flex min-w-0 flex-1 items-baseline justify-between gap-2 text-left">
+                    <span className="truncate font-semibold">{l.code}</span>
+                    <span className="shrink-0 text-xs" style={{ color: '#94a3b8' }}>{l.areaM2} m² · {formatMoney(l.price)}</span>
+                  </span>
                   <button className="btn-danger !h-6 !px-2 text-xs shrink-0" onClick={() => delLot(l)}>Eliminar</button>
                 </li>
-              ))}
-              {lots.length === 0 && <li className="text-xs" style={{ color: '#94a3b8' }}>Aún no hay lotes.</li>}
-            </ul>
-          </div>
+              ));
+            })()}
+            {lots.length === 0 && <li className="text-xs" style={{ color: '#94a3b8' }}>Aún no hay lotes.</li>}
+          </ul>
+          {lots.length > 15 && (
+            <div className="mt-2 flex items-center justify-between gap-2 border-t pt-2" style={{ borderColor: '#EEF0F2' }}>
+              <button
+                className="btn-neutral !h-7 !px-2 text-xs"
+                disabled={lotPage <= 0}
+                onClick={() => setLotPage((v) => Math.max(0, v - 1))}
+              >← Anterior</button>
+              <span className="text-xs" style={{ color: '#6B7280' }}>
+                Página {Math.min(lotPage, Math.floor((lots.length - 1) / 15)) + 1} de {Math.max(1, Math.ceil(lots.length / 15))}
+              </span>
+              <button
+                className="btn-neutral !h-7 !px-2 text-xs"
+                disabled={lotPage >= Math.max(0, Math.ceil(lots.length / 15) - 1)}
+                onClick={() => setLotPage((v) => v + 1)}
+              >Siguiente →</button>
+            </div>
+          )}
         </div>
       </div>
     </div>
