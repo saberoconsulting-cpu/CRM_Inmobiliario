@@ -91,38 +91,7 @@ export default function SalesPage() {
             <h3 className="font-semibold">Historial de ventas</h3>
             <button className="btn-primary" onClick={() => setOpen(true)}>Registrar venta</button>
           </div>
-          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Un lote Vendido no puede volver a venderse. El sistema lo valida.</p>
-        {(() => {
-          const n = rows.length;
-          const total = rows.reduce((s2, r) => s2 + Number(r.salePrice || 0), 0);
-          const comm = rows.reduce((s2, r) => s2 + Number(r.commission || 0), 0);
-          const vals = rows.slice(0, 12).map((r, i) => ({ i, v: Number(r.salePrice || 0) })).reverse();
-          const peak = Math.max(1, ...vals.map((x) => x.v));
-          const barW = Math.max(8, Math.min(22, Math.floor(340 / Math.max(1, vals.length))));
-          return (
-            <div className="mb-3">
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div className="rounded-2xl border bg-white p-3"><p className="text-[11px] uppercase" style={{ color: '#6B7280' }}>Registradas</p><p className="text-xl font-extrabold">{n}</p><p className="text-[11px]" style={{ color: '#9aa1ab' }}>incluye reservadas en proceso</p></div>
-                <div className="rounded-2xl border bg-white p-3"><p className="text-[11px] uppercase" style={{ color: '#6B7280' }}>Volumen</p><p className="text-xl font-extrabold" style={{ color: '#067a46' }}>{formatMoney(total)}</p><p className="text-[11px]" style={{ color: '#9aa1ab' }}>últimos registros</p></div>
-                <div className="rounded-2xl border bg-white p-3"><p className="text-[11px] uppercase" style={{ color: '#6B7280' }}>Comisión</p><p className="text-xl font-extrabold" style={{ color: '#E30620' }}>{formatMoney(comm)}</p><p className="text-[11px]" style={{ color: '#9aa1ab' }}>al asesor responsable</p></div>
-                <div className="rounded-2xl bg-slate-900 p-3 text-white"><p className="text-[11px] uppercase text-slate-300">Tendencia</p><p className="text-xl font-extrabold">{vals.length} registros</p><p className="text-[11px] text-slate-400">barras = últimas ventas</p></div>
-              </div>
-              {vals.length > 0 && (
-                <div className="mt-3 rounded-2xl border bg-white p-2" style={{ borderColor: '#ECEFF1' }}>
-                  <svg width="100%" height="66" viewBox={`0 0 ${Math.max(300, vals.length * (barW + 4))} 66`} preserveAspectRatio="xMidYMax meet">
-                    {vals.map((b) => {
-                      const h = Math.max(3, (b.v / peak) * 48);
-                      const x = b.i * (barW + 4);
-                      const last = b.i === vals.length - 1;
-                      return <rect key={b.i} x={x} y={64 - h} width={barW} height={h} rx={3} fill={last ? '#E30620' : '#1f2937'} opacity={last ? 1 : 0.24} />;
-                    })}
-                  </svg>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-        {isAdmin && pending.length > 0 && (
+          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Un lote Vendido no puede volver a venderse. El sistema lo valida.</p>{isAdmin && pending.length > 0 && (
           <div className="card">
             <h3 className="font-semibold mb-2">Separaciones por aprobar ({pending.length})</h3>
             <div className="overflow-auto">
