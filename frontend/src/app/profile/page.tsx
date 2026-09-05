@@ -212,16 +212,7 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-          {(me?.phone?.trim() || me?.whatsapp?.trim()) && (
-            <div className="card">
-              <h3 className="font-semibold mb-2 text-sm">Contacto</h3>
-              <div className="text-xs space-y-2">
-                {me.phone?.trim() && <div>📞 <a className="hover:underline" href={`tel:${me.phone}`}>{me.phone}</a></div>}
-                {me.whatsapp?.trim() && <div>💬 <a className="hover:underline" href={`https://wa.me/${me.whatsapp.replace(/[^\d]/g, '')}`} target="_blank" rel="noreferrer">{me.whatsapp}</a></div>}
-              </div>
-            </div>
-          )}
-        </aside>
+                </aside>
         </div>
       </div>
     </Layout>

@@ -70,7 +70,16 @@ export class SalesService {
     });
     const saved = await this.saleRepo.save(sale);
 
-    // El lote queda "separado" hasta aprobación del Admin/Tesorería
+    // El lote queda "separado" hasta aprobación. Compromiso ATOMICO:
+    // solo gana si sigue disponible; evita que dos agentes vendan/reserven a la vez.
+    const claimed = await this.lotRepo.update(
+      { id: lot.id, sellingStage: 'disponible' },
+      { sellingStage: 'separado', agentId: dto.agentId, clientId: dto.clientId ?? lot.clientId ?? null },
+    );
+    const won = claimed.affected == null || Number(claimed.affected) > 0;
+    if (!won) {
+      throw new BadRequestException('Mientras confirmabas, otro agente gestionó este lote. Puedes verlo, contactar al asesor responsable o pedir reasignación al administrador, pero no registrar una venta duplicada.');
+    }
     lot.sellingStage = 'separado';
     lot.clientId = dto.clientId ?? lot.clientId;
     lot.agentId = dto.agentId;

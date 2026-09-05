@@ -1,5 +1,5 @@
 // modules/payments/application/payments.service.ts
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaymentEntity } from '../../../shared/infrastructure/entities/payment.entity';
@@ -72,6 +72,19 @@ export class PaymentsService {
       amount: String(dto.amount),
     });
 
+    // Asesor/responsable automático y bloqueo de venta "robada".
+    // Reservar/adelantar = compromete el lote a su vendedor (regla de negocio).
+    if (lot && TYPE_STATUS[dto.type] && lot.status !== 'vendido') {
+      const claim = dto.agentId != null && !Number.isNaN(Number(dto.agentId)) ? Number(dto.agentId) : (actorId || null);
+      const owning = lot.agentId == null ? null : Number(lot.agentId);
+      if (owning && claim && owning !== claim) {
+        const msg = 'Este lote ya tiene un asesor responsable de su venta.';
+        throw new BadRequestException(msg + ' Puedes verlo, pero para gestionarlo o reasignarlo pídelo al administrador (evita registrar ventas duplicadas o ajenas).');
+      }
+      if (!owning && claim) {
+        lot.agentId = claim; // queda el responsable de esta venta
+      }
+    }
     // Actualizar estado comercial del lote según el tipo de pago
     if (lot && TYPE_STATUS[dto.type] && lot.status !== 'vendido') {
       const target = TYPE_STATUS[dto.type];

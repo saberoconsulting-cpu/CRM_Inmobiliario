@@ -24,8 +24,7 @@ export default function LotesPage() {
     if (statusFilter) q.set('status', statusFilter);
     if (search) q.set('search', search);
     if (project) q.set('projectId', project);
-    q.set('page', String(page));
-    q.set('limit', String(limit));
+    q.set('limit', '500');
     try {
       const d = await api.get<any>(`/lots?${q.toString()}`);
       const rows: Lot[] = Array.isArray(d) ? d : (d?.items || []);
@@ -62,29 +61,59 @@ export default function LotesPage() {
         <button className="btn-secondary" onClick={()=>{setBuscar('');setSearch('');setStatusFilter('');setProject('');}}>Limpiar</button>
       </div>
 
-      <div className="card overflow-auto">
-        <table className="table-base">
-          <thead><tr>
-            <th className="th-base">Código</th><th className="th-base">Proyecto</th><th className="th-base">Área m²</th>
-            <th className="th-base">Precio</th><th className="th-base">Estado</th><th className="th-base"></th>
-          </tr></thead>
-          <tbody className="divide-y divide-slate-100">
-            {lots.map((l)=>(
-              <tr key={l.id} className="hover:bg-slate-50">
-                <td className="td-base font-medium">{l.code}</td>
-                <td className="td-base">{l.projectId}</td>
-                <td className="td-base">{l.areaM2}</td>
-                <td className="td-base">{formatMoney(l.price)}</td>
-                <td className="td-base"><span className="badge" style={{backgroundColor:LOT_STATUS_COLOR[l.status]+'22', color:LOT_STATUS_COLOR[l.status]}}>{LOT_STATUS_LABEL[l.status]}</span></td>
-                <td className="td-base text-right"><button className="btn-secondary text-xs" onClick={() => setSelected(l.id)}>Ver ficha</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {lots.length===0 && <EmptyState text="No se encontraron lotes con los filtros" />}
-        <div className="p-4">
-          <PaginationBar label="Lotes" page={page} totalPages={meta.totalPages} total={meta.total} limit={limit} setPage={setPage} setLimit={setLimit} />
-        </div>
+      <div className="space-y-5">
+        {(() => {
+          if (!lots.length) return <EmptyState text="No se encontraron lotes con los filtros" />;
+          const coll = new Intl.Collator('es', { numeric: true, sensitivity: 'base' });
+          const blockOf = (c: string) => String(c || '').split(/[-_\s.]/)[0] || c;
+          const baseAbc = (b: string) => /^[a-zA-Z]/.test(b);
+          const numsFirst = false; // letras primero (A, B, C…), luego numéricas
+          const ordered = [...lots].sort((a, b) => {
+            const ba = blockOf(a.code), bb = blockOf(b.code);
+            if (ba === bb) return coll.compare(a.code, b.code);
+            const aL = baseAbc(ba), bL = baseAbc(bb);
+            if (aL !== bL) return aL && !bL ? -1 : 1;
+            return coll.compare(ba, bb);
+          });
+          const groups: { k: string; items: Lot[] }[] = [];
+          for (const l of ordered) {
+            const k = blockOf(l.code) || '?';
+            const g = groups.find((x) => x.k === k);
+            if (g) g.items.push(l); else groups.push({ k, items: [l] });
+          }
+          return groups.map((g) => {
+            const totalArea = g.items.reduce((s, l) => s + Number(l.areaM2 || 0), 0);
+            const venta = g.items.filter((l) => l.status === 'vendido').length;
+            return (
+              <div key={g.k} className="card overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5 bg-slate-50/60" style={{ borderColor: '#E9EBEE' }}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 place-items-center rounded-lg text-base font-extrabold text-white" style={{ background: '#171717' }}>{g.k}</span>
+                    <div>
+                      <p className="font-bold leading-tight">Manzana {g.k}</p>
+                      <p className="text-xs text-slate-500">{g.items.length} lotes · {formatMoney(totalArea)} m² {venta ? `· ${venta} vendidos` : ''}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs" style={{ color: '#94a3b8' }}>{blockOf(g.k)} · {g.items.length}</span>
+                </div>
+                <div>
+                  {g.items.map((l) => (
+                    <div key={l.id} className="group flex cursor-pointer items-center justify-between gap-3 border-b px-4 py-2 hover:bg-slate-50 last:border-0" onClick={() => setSelected(l.id)} style={{ borderColor: '#F0F1F3' }}>
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-[#171717]">{l.code}</span>
+                        <span className="block text-[11px]" style={{ color: '#9AA1AB' }}>{(proyectos.find((p: any) => Number(p.id) === Number(l.projectId)) as any)?.name || `Proyecto ${l.projectId}`}</span>
+                      </span>
+                      <span className="hidden shrink-0 text-xs sm:block" style={{ color: '#94a3b8' }}>{l.areaM2} m²</span>
+                      <span className="shrink-0 text-sm font-semibold">{formatMoney(l.price)}</span>
+                      <span className="shrink-0"><span className="badge" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span></span>
+                      <button className="btn-secondary !h-8 !px-3 text-xs" onClick={(e) => { e.stopPropagation(); setSelected(l.id); }}>Ver ficha</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          });
+        })()}
       </div>
     </Layout>
   );

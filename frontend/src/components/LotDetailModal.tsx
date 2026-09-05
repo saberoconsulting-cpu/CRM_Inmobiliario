@@ -62,7 +62,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
     <Modal open={!!lot} onClose={onClose} title={lot ? `Lote ${lot.code}` : ''} width="max-w-xl">
       {lot && (
         <div className="space-y-5">
-          {/* Cabecera de estado dinÃ¡mica â€” se repinta cuando el lote cambia de estado */}
+          {/* Cabecera de estado dinÃ¡mica — se repinta cuando el lote cambia de estado */}
           <div className="rounded-2xl px-4 py-4 text-white shadow-sm" style={{ background: statusColor }}>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -137,7 +137,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Cambiar estado</h4>
             <div className="flex flex-wrap gap-2">
               {(['disponible','reservado','adelanto','primera_cuota'] as LotStatus[]).map((s) => lot.status !== s && (
-                <button key={s} onClick={() => changeStatus(s)} disabled={working} className="btn-secondary">â†’ {LOT_STATUS_LABEL[s]}</button>
+                <button key={s} onClick={() => changeStatus(s)} disabled={working} className="btn-secondary">→ {LOT_STATUS_LABEL[s]}</button>
               ))}
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Historial de estados</h4>
             <ul className="space-y-1 text-sm">
               {history.map((h) => (
-                <li key={h.id as any} className="flex items-center gap-2"><StatusBadge status={h.fromStatus||''}/> â†’ <StatusBadge status={h.toStatus}/><span className="text-slate-400 text-xs">{formatDate(h.createdAt)}</span></li>
+                <li key={h.id as any} className="flex items-center gap-2"><StatusBadge status={h.fromStatus||''}/> → <StatusBadge status={h.toStatus}/><span className="text-slate-400 text-xs">{formatDate(h.createdAt)}</span></li>
               ))}
               {history.length===0 && <li className="text-slate-400">Sin cambios</li>}
             </ul>
@@ -167,7 +167,7 @@ export function PagosTable({ rows }: { rows: Row[] }) {
         <thead><tr><th className="th-base">Tipo</th><th className="th-base">Monto</th><th className="th-base">Estado</th><th className="th-base">Fecha</th></tr></thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((p) => (
-            <tr key={p.id}><td className="td-base capitalize">{p.type||''}</td><td className="td-base">{(p as any).paymentMethod || 'â€”'}</td><td className="td-base">{(p as any).voucherUrl ? <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver comprobante</a> : 'â€”'}</td><td className="td-base">{formatMoney(p.amount)}</td><td className="td-base"><StatusBadge status={(p as any).status||''}/></td><td className="td-base">{formatDate((p as any).paidAt||(p as any).createdAt||'')}</td></tr>
+            <tr key={p.id}><td className="td-base capitalize">{p.type||''}</td><td className="td-base">{(p as any).paymentMethod || '—'}</td><td className="td-base">{(p as any).voucherUrl ? <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver comprobante</a> : '—'}</td><td className="td-base">{formatMoney(p.amount)}</td><td className="td-base"><StatusBadge status={(p as any).status||''}/></td><td className="td-base">{formatDate((p as any).paidAt||(p as any).createdAt||'')}</td></tr>
           ))}
           {rows.length===0 && <tr><td className="td-base text-slate-400" colSpan={4}>Sin pagos</td></tr>}
         </tbody>
