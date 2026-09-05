@@ -101,6 +101,11 @@ export default function ProjectPage() {
             <h2 className="text-xl font-bold">{project.name}</h2>
             <p className="text-slate-500 text-sm flex items-center gap-1"><IoLocationSharp /> {project.location}</p>
             {project.description && <p className="text-xs text-slate-400 mt-1">{project.description}</p>}
+            {stats?.cards?.income != null && (
+              <span className="inline-flex items-center gap-1.5 mt-2 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: '#EAF7EE', color: '#125A3B' }}>
+                Ingreso acumulado: {formatMoney(stats.cards.income)}
+              </span>
+            )}
           </div>
           {canEdit && (
             <div className="flex flex-col gap-2">
@@ -118,7 +123,6 @@ export default function ProjectPage() {
           <StatCard key={s} label={LOT_STATUS_LABEL[s] as any} value={count(s)}
             color={LOT_STATUS_COLOR[s] as any} />
         ))}
-        <StatCard label="Ingreso acumulado" value={formatMoney(stats?.cards?.income)} />
 
         {/* Plano interactivo */}
         <div className="xl:col-span-2">
@@ -144,8 +148,8 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        {/* Tabla de lotes */}
-        <div className="flex flex-col gap-4">
+        {/* Tabla de lotes: debajo del plano, a todo el ancho */}
+        <div className="xl:col-span-3 flex flex-col gap-4">
           <div className="card flex-1">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="font-semibold">Lotes {blockFilter ? '(filtrado manzana)' : ''}</h3>

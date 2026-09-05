@@ -15,9 +15,12 @@ export function getSocket(token: string): Socket {
   firstFailureAt = 0;
   lastToken = token;
   socket = io(process.env.NEXT_PUBLIC_API || 'http://localhost:3001', {
-    transports: ['websocket', 'polling'],
+    // polling primero, luego intenta mejorar a websocket (opcional).
+    // Así, si el reverse proxy no está enrutando wss, la app no rompe ni
+    // llena la consola de "WebSocket connection failed": queda en polling.
+    transports: ['polling', 'websocket'],
     reconnection: true,
-    reconnectionAttempts: 2,
+    reconnectionAttempts: 3,
     reconnectionDelay: 900,
     timeout: 8000,
     auth: { token },

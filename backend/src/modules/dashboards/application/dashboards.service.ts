@@ -86,6 +86,25 @@ export class DashboardsService {
       .where('e.expense_date >= :weekStart', { weekStart })
       .getCount();
 
+    // "Últimas ventas": si aún no hay registros formales en la tabla sales,
+    // mostramos los movimientos de pago ya confirmados (separaciones/adelantos/cuotas),
+    // igual que hacemos con el ranking de agentes más abajo. Así el Home nunca queda vacío.
+    let latestSales: any[] = (recentSales || []) as any[];
+    if (!latestSales?.length) {
+      const paid = await this.paymentRepo.find({
+        where: { status: 'pagado' },
+        order: { createdAt: 'DESC' },
+        take: 10,
+      });
+      latestSales = (paid || []).map((p: any) => ({
+        id: p.id,
+        salePrice: Number(p.amount || 0),
+        type: p.type || 'pago',
+        createdAt: p.createdAt,
+        fromPayment: true,
+      }));
+    }
+
     let rankings = agentRanking;
     // Si el equipo no ha registrado todavía ventas formales, igual vemos avance
     // comercial por agente basado en los importes pagados (Yape/banco/efectivo).
@@ -116,7 +135,7 @@ export class DashboardsService {
         agentId: r.agentId, agentName: r.agentName || (r.agentId ? `Agente #${r.agentId}` : 'Sin agente'), salesCount: Number(r.salesCount),
         salesAmount: Number(r.salesAmount), commission: Number(r.commission || 0),
       })),
-      recentSales,
+      recentSales: latestSales,
       recentPayments,
       leadsByChannel: leadsByChannel.map((r) => ({ channel: r.channel, total: Number(r.total) })),
     };

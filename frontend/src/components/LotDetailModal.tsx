@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect, useState } from 'react';
 import { Modal, toast, StatusBadge, Field } from './ui';
 import { api } from '@/lib/api';
@@ -59,10 +59,10 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
 
   if (!lotId) return null;
   return (
-    <Modal open={!!lot} onClose={onClose} title={lot ? `Lote ${lot.code}` : ''} width="max-w-2xl">
+    <Modal open={!!lot} onClose={onClose} title={lot ? `Lote ${lot.code}` : ''} width="max-w-xl">
       {lot && (
         <div className="space-y-5">
-          {/* Cabecera de estado dinámica — se repinta cuando el lote cambia de estado */}
+          {/* Cabecera de estado dinÃ¡mica â€” se repinta cuando el lote cambia de estado */}
           <div className="rounded-2xl px-4 py-4 text-white shadow-sm" style={{ background: statusColor }}>
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -70,7 +70,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
                 <div className="text-2xl font-bold capitalize -mt-0.5">{LOT_STATUS_LABEL[lot.status as LotStatus] || lot.status}</div>
               </div>
               <div className="text-right">
-                <div className="text-[11px] uppercase tracking-wider opacity-80">{lot.areaM2} m²</div>
+                <div className="text-[11px] uppercase tracking-wider opacity-80">{lot.areaM2} mÂ²</div>
                 <div className="text-xl font-extrabold">{formatMoney(lot.price)}</div>
               </div>
             </div>
@@ -79,7 +79,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
             <div className="border rounded-2xl p-4" style={{ borderColor: '#e5e7eb' }}>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-sm text-slate-800">Financiamiento del lote</h4>
-                <span className="badge" style={{ background: donePct >= 100 ? '#D1FAE5' : '#FEF3C7', color: donePct >= 100 ? '#065F46' : '#92400E' }}>{donePct >= 100 ? 'Saldado ✓' : donePct + '%'}</span>
+                <span className="badge" style={{ background: donePct >= 100 ? '#D1FAE5' : '#FEF3C7', color: donePct >= 100 ? '#065F46' : '#92400E' }}>{donePct >= 100 ? 'Saldado âœ“' : donePct + '%'}</span>
               </div>
               <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-4">
                 <div className="h-full" style={{ width: donePct + '%', background: statusColor }} />
@@ -108,7 +108,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
                 <div className="mt-3 space-y-1 max-h-48 overflow-auto pr-1">
                   {schedule.map((q) => (
                     <div key={q.id ?? q.installmentNo} className="flex items-center justify-between text-xs py-1 border-b border-slate-50">
-                      <span className="text-slate-500">Cuota {q.installmentNo} · vence {formatDate(q.dueDate)}</span>
+                      <span className="text-slate-500">Cuota {q.installmentNo} Â· vence {formatDate(q.dueDate)}</span>
                       <b className={q.status === 'pagado' ? 'text-emerald-600' : 'text-slate-700'}>{formatMoney(q.amount)}</b>
                     </div>
                   ))}
@@ -130,14 +130,14 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
               <div className="flex-1 min-w-32">
                 <Field label="Monto (S/)"><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="input" /></Field>
               </div>
-              <button onClick={registerPayment} disabled={working} className="btn-primary shrink-0">{working ? '…' : 'Registrar pago'}</button>
+              <button onClick={registerPayment} disabled={working} className="btn-primary shrink-0">{working ? 'â€¦' : 'Registrar pago'}</button>
             </div>
           </div>
           <div className="border-t pt-4">
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Cambiar estado</h4>
             <div className="flex flex-wrap gap-2">
               {(['disponible','reservado','adelanto','primera_cuota'] as LotStatus[]).map((s) => lot.status !== s && (
-                <button key={s} onClick={() => changeStatus(s)} disabled={working} className="btn-secondary">→ {LOT_STATUS_LABEL[s]}</button>
+                <button key={s} onClick={() => changeStatus(s)} disabled={working} className="btn-secondary">â†’ {LOT_STATUS_LABEL[s]}</button>
               ))}
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Historial de estados</h4>
             <ul className="space-y-1 text-sm">
               {history.map((h) => (
-                <li key={h.id as any} className="flex items-center gap-2"><StatusBadge status={h.fromStatus||''}/> → <StatusBadge status={h.toStatus}/><span className="text-slate-400 text-xs">{formatDate(h.createdAt)}</span></li>
+                <li key={h.id as any} className="flex items-center gap-2"><StatusBadge status={h.fromStatus||''}/> â†’ <StatusBadge status={h.toStatus}/><span className="text-slate-400 text-xs">{formatDate(h.createdAt)}</span></li>
               ))}
               {history.length===0 && <li className="text-slate-400">Sin cambios</li>}
             </ul>
@@ -167,7 +167,7 @@ export function PagosTable({ rows }: { rows: Row[] }) {
         <thead><tr><th className="th-base">Tipo</th><th className="th-base">Monto</th><th className="th-base">Estado</th><th className="th-base">Fecha</th></tr></thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map((p) => (
-            <tr key={p.id}><td className="td-base capitalize">{p.type||''}</td><td className="td-base">{(p as any).paymentMethod || '—'}</td><td className="td-base">{(p as any).voucherUrl ? <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver comprobante</a> : '—'}</td><td className="td-base">{formatMoney(p.amount)}</td><td className="td-base"><StatusBadge status={(p as any).status||''}/></td><td className="td-base">{formatDate((p as any).paidAt||(p as any).createdAt||'')}</td></tr>
+            <tr key={p.id}><td className="td-base capitalize">{p.type||''}</td><td className="td-base">{(p as any).paymentMethod || 'â€”'}</td><td className="td-base">{(p as any).voucherUrl ? <a href={(p as any).voucherUrl} target="_blank" rel="noreferrer" className="text-[#E30620] hover:underline">Ver comprobante</a> : 'â€”'}</td><td className="td-base">{formatMoney(p.amount)}</td><td className="td-base"><StatusBadge status={(p as any).status||''}/></td><td className="td-base">{formatDate((p as any).paidAt||(p as any).createdAt||'')}</td></tr>
           ))}
           {rows.length===0 && <tr><td className="td-base text-slate-400" colSpan={4}>Sin pagos</td></tr>}
         </tbody>

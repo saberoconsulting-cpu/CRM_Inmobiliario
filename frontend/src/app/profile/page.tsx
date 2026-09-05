@@ -90,7 +90,7 @@ export default function ProfilePage() {
   return (
     <Layout title="Mi perfil">
       <Toaster />
-      <div className="max-w-5xl space-y-5">
+      <div className="grid gap-5 items-start md:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
         {/* Encabezado de identidad */}
         <div className="card p-6 flex flex-wrap items-center gap-5">
           <div className="relative shrink-0">

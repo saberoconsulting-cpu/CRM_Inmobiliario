@@ -65,7 +65,14 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: {
   if (!open) return null;
 
   const isCenter = pos.x < 0;
-  const winW = width.includes('max-w-') ? 820 : 600;
+  // Respetar el ancho solicitado por cada pantalla (siempre con tope de viewport).
+  const W: Record<string, number> = {
+    'max-w-xs': 320, 'max-w-sm': 384, 'max-w-md': 448, 'max-w-lg': 512,
+    'max-w-xl': 576, 'max-w-2xl': 672, 'max-w-3xl': 768, 'max-w-4xl': 896, 'max-w-5xl': 1024,
+    'max-w-6xl': 1152, 'max-w-7xl': 1280,
+  };
+  const wants = (typeof width === 'string' && W[width]) ? W[width] : 512;
+  const winW = wants;
 
   const barRow = (
     <div
