@@ -53,6 +53,15 @@ export default function UsersPage() {
     try { const r = await api.post<{ temporaryPassword: string }>(`/users/reset-password/${u.id}`, { newPassword: pw }); toast('Contraseña restablecida'); void r; }
     catch (e: any) { toast(e.message, 'err'); }
   }
+  async function editCommission(u: U) {
+    const value = prompt(`Comisión % para ${u.name} (la usa el admin en registros de venta):`, String(Number(u.commissionRate || 0)));
+    const n = Number(value);
+    if (value == null || isNaN(n) || n < 0 || n > 100) { toast('Ingresa un % válido entre 0 y 100', 'err'); return; }
+    try {
+      await api.post(`/users/update/${u.id}`, { commissionRate: n });
+      toast('Comisión actualizada'); load();
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
 
   const roles: any = { superadmin: 'Superadmin', admin: 'Admin', agent: 'Agente' };
   const RoleBadge = ({ r }: { r: string }) => <span className="badge" style={{ background: r === 'agent' ? '#EEF2FF' : r === 'admin' ? '#FFF1F3' : '#F3F4F6', color: r === 'agent' ? '#3730A3' : r === 'admin' ? '#A90318' : '#374151' }}>{roles[r] || r}</span>;
@@ -84,7 +93,9 @@ export default function UsersPage() {
                   <td className="td-base font-medium">{u.name}</td>
                   <td className="td-base">{u.email}</td>
                   <td className="td-base"><RoleBadge r={u.role} /></td>
-                  <td className="td-base">{u.role === 'agent' ? `${Number(u.commissionRate || 0)}%` : '—'}</td>
+                  <td className="td-base">{u.role === 'agent' ? (
+                    <button className="text-[#E30620] hover:underline text-xs font-medium inline-flex items-center gap-1" onClick={() => editCommission(u)}>⚙ {Number(u.commissionRate || 0)}% editar</button>
+                  ) : '—'}</td>
                   <td className="td-base"><span className="badge" style={{ background: u.status === 'active' ? '#EAF7EE' : '#F1F5F9', color: u.status === 'active' ? '#125A3B' : '#64748B' }}>{u.status}</span></td>
                   <td className="td-base">
                     <button className="btn-neutral !h-7 text-xs mr-1" onClick={() => toggle(u)}>{u.status === 'active' ? 'Desactivar' : 'Activar'}</button>

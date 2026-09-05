@@ -144,9 +144,11 @@ export default function SalesPage() {
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-          <div className="relative bg-white rounded-2xl w-full max-w-lg p-6">
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[92vh] overflow-y-auto">
             <h3 className="font-semibold mb-5" style={{ fontSize: 17 }}>Registrar venta</h3>
-            <div className="grid grid-cols-2 gap-3">
+
+            {/* Lote y responsable */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Proyecto">
                 <select className="input" value={projectId} onChange={(e) => setProjectId(Number(e.target.value))}>
                   <option value={0}>Auto / Todos</option>
@@ -155,34 +157,65 @@ export default function SalesPage() {
               </Field>
               <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido' && l.sellingStage !== 'vendido' && l.sellingStage !== 'separado').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Cliente"><select className="input" value={clientId} onChange={(e) => setClientId(Number(e.target.value))}><option value={0}>— Sin asignar —</option>{clients.map((c: any) => <option key={c.id} value={c.id}>{(c.fullName || c.full_name || '— Sin nombre —')}</option>)}</select></Field>
               <Field label="Agente *"><select className="input" value={agentId} onChange={(e) => setAgentId(Number(e.target.value))}><option value={0}>Selecciona…</option>{agents.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Precio de venta (S/) *"><input type="number" className="input" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></Field>
-            <div className="mt-3 rounded-xl bg-canvas p-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={applyCommission} onChange={(e) => setApplyCommission(e.target.checked)} />
-                <span className="font-medium">Vende un agente inmobiliario</span>
-                <span className="text-xs text-slate-400">(comisión se descuenta para financiar cuotas)</span>
+
+            {/* Monto y fecha */}
+            <div className="border-t mt-4 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Precio de venta (S/)*"><input type="number" className="input" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></Field>
+                <Field label="Fecha"><input type="date" className="input" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
+              </div>
+            </div>
+
+            {/* Comisión opcional (la tasa la define el admin en el agente, no se fuerza) */}
+            <div className="rounded-xl bg-canvas p-4 mt-3">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-1" checked={applyCommission} onChange={(e) => setApplyCommission(e.target.checked)} />
+                <span className="text-sm">
+                  <span className="font-semibold block">Agente inmobiliario</span>
+                  <span className="text-xs text-slate-500">Descuenta la comisión del precio para calcular las cuotas.</span>
+                </span>
               </label>
               {applyCommission && (
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Field label="Comisión (%)"><input type="number" className="input" min={0} max={100} step={0.1} value={commissionRate || ''} onChange={(e) => setCommissionRate(Number(e.target.value))} /></Field>
-                  <Field label="Base de cuotas (neto)">
-                    <div className="input bg-slate-50 font-semibold">{formatMoney(commissionRate ? Math.max(0, salePrice - (salePrice * commissionRate) / 100) : salePrice)}</div>
-                  </Field>
+                <div className="mt-3 rounded-lg bg-white/70 border p-3" style={{ borderColor: '#EDEEF0' }}>
+                  {(() => {
+                    const ag = agents.find((a: any) => Number(a.id) === Number(agentId));
+                    const adminRate = Number(ag?.commissionRate || 0);
+                    const rate = commissionRate || adminRate;
+                    const nett = rate ? Math.max(0, salePrice - (salePrice * rate) / 100) : salePrice;
+                    return (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span className="text-slate-600">Comisión según administrador:</span>
+                          <span className="font-semibold">{adminRate > 0 ? `${adminRate}%` : 'sin configurar'}</span>
+                        </div>
+                        <div>
+                          <label className="label">Comisión para esta venta (%) — déjala vacía para usar la del admin</label>
+                          <input className="input" type="number" min={0} max={100} step={0.1} placeholder="0" value={commissionRate || ''} onChange={(e) => setCommissionRate(Number(e.target.value))} />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm border-t pt-3" style={{ borderColor: '#EEF0F2' }}>
+                          <span className="text-slate-600">Base de cuotas (precio − comisión):</span>
+                          <b>{formatMoney(nett)}</b>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
-              <Field label="Fecha"><input type="date" className="input" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
-            </div>
+
+            {/* Plan de pagos */}
             <div className="mt-3">
               <Field label="Nº de cuotas (0 = contado, se genera cronograma al aprobar)"><input type="number" min={0} max={120} className="input" value={totalCuotas} onChange={(e) => setTotalCuotas(Number(e.target.value))} /></Field>
             </div>
+
             <Field label="Condiciones"><textarea className="input mt-3" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
-            <div className="flex justify-end gap-2 pt-2">
+
+            <div className="flex justify-end gap-2 pt-4 mt-1 border-t">
               <button className="btn-neutral" onClick={() => setOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={registrar}>Registrar venta</button>
             </div>

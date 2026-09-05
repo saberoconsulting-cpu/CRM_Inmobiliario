@@ -26,6 +26,13 @@ export default function AgentsPage() {
     try { await api.post(`/users/status/${u.id}/${u.status === 'active' ? 'inactive' : 'active'}`); toast('Estado actualizado'); load(); }
     catch (e: any) { toast(e.message as string, 'err'); }
   }
+  async function changeCommission(u: A) {
+    const val = prompt(`Comisión % para ${u.name}:`, String(Number(u.commissionRate || 0)));
+    const n = Number(val);
+    if (val == null || isNaN(n) || n < 0 || n > 100) return toast('Ingresa un % entre 0 y 100', 'err');
+    try { await api.post(`/users/update/${u.id}`, { commissionRate: n }); toast('Comisión actualizada'); load(); }
+    catch (e: any) { toast(e.message as string, 'err'); }
+  }
 
   return (
     <Layout title="Agentes y rendimiento">
@@ -49,7 +56,7 @@ export default function AgentsPage() {
                 {rows.map((a) => (
                   <tr key={a.id}>
                     <td className="td-base font-medium">{a.name}</td>
-                    <td className="td-base">{Number(a.commissionRate || 0)}%</td>
+                    <td className="td-base"><button onClick={() => changeCommission(a)} className="text-[#E30620] text-xs font-medium inline-flex items-center gap-1 hover:underline">⚙ {Number(a.commissionRate || 0)}% editar</button></td>
                     <td className="td-base">{countOf(a.id)}</td>
                     <td className="td-base">{amountOf(a.id).toLocaleString('es-PE')}</td>
                     <td className="td-base">{a.monthlyGoalLots || 0}</td>

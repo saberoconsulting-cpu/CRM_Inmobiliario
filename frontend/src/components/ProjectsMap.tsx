@@ -15,28 +15,14 @@ const TILE_URL = 'https://tiles.openfreemap.org/styles/liberty'; // calles/OSM g
 export default function ProjectsMap({ projects, onOpen }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
 
-  useEffect(() => {
-    if (!ref.current || map.current) return;
-    const m = new maplibregl.Map({
-      container: ref.current,
-      style: TILE_URL,
-      center: DEFAULT_CENTER,
-      zoom: 6,
-      attributionControl: false,
-    });
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-    map.current = m;
-    return () => { map.current?.remove(); map.current = null; };
-  }, []);
+  const renderMarkers = (m: maplibregl.Map) => {
+    markersRef.current.forEach((mk) => mk.remove());
+    markersRef.current = [];
 
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    // eliminar marcadores previos
-    (m as any)._crmMarkers?.forEach((mk: maplibregl.Marker) => mk.remove());
-    const markers: maplibregl.Marker[] = [];
-    const geo: Project[] = projects.filter((p) => p.latitude != null && p.longitude != null);
+    const geo = (projects || []).filter((p) => Number(p.latitude) && Number(p.longitude));
+    if (!geo.length) return;
 
     const content = (p: Project) => `
       <div style="min-width:220px; font-family:inherit">
@@ -48,7 +34,7 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
 
     geo.forEach((p) => {
       const el = document.createElement('div');
-      el.style.cssText = 'width:34px;height:34px;border-radius:50%;background:#E30620;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer';
+      el.style.cssText = 'width:34px;height:34px;border-radius:50%;background:#E30620;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer;z-index:2';
       el.textContent = String(p.name?.charAt(0) || 'P').toUpperCase();
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([Number(p.longitude), Number(p.latitude)])
@@ -56,16 +42,48 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
         .addTo(m);
       const popup = marker.getPopup();
       el.onclick = () => popup?.addTo(m);
-      markers.push(marker);
+      markersRef.current.push(marker);
     });
 
-    (m as any)._crmMarkers = markers;
-    if (geo.length > 0) {
+    if (geo.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
       geo.forEach((p) => bounds.extend([Number(p.longitude), Number(p.latitude)]));
       m.fitBounds(bounds, { padding: 64, maxZoom: 12 });
+    } else if (geo.length === 1) {
+      m.flyTo({ center: [Number(geo[0].longitude), Number(geo[0].latitude)], zoom: 13 });
     }
+  };
+
+  useEffect(() => {
+    if (!ref.current || map.current) return;
+    const m = new maplibregl.Map({
+      container: ref.current,
+      style: TILE_URL,
+      center: DEFAULT_CENTER,
+      zoom: 5,
+    });
+    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+    m.on('load', () => renderMarkers(m));
+    map.current = m;
+    return () => { map.current?.remove(); map.current = null; markersRef.current = []; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (m.loaded()) renderMarkers(m);
+    else m.once('load', () => renderMarkers(m));
   }, [projects]);
 
-  return <div ref={ref} className="w-full h-[72vh] rounded-2xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }} />;
+  return (
+    <div className="relative w-full h-[72vh] rounded-2xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
+      <div ref={ref} className="absolute inset-0" />
+      {projects.length > 0 && !projects.some((p) => Number(p.latitude)) && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-full px-4 py-2">
+          Ningún proyecto tiene latitud/longitud guardada.
+        </div>
+      )}
+    </div>
+  );
 }
