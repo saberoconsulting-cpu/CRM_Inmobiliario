@@ -22,7 +22,32 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
     markersRef.current = [];
 
     const geo = (projects || []).filter((p) => Number(p.latitude) && Number(p.longitude));
-    if (!geo.length) return;
+    const missing = (projects || []).filter((p) => !(Number(p.latitude) && Number(p.longitude)) && p.location);
+
+    if (!geo.length && !missing.length) return;
+
+    if (missing.length) {
+      // Respaldo: dirección escrita -> geocode al vuelo (no modifica BD)
+      missing.forEach((p) => {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=${encodeURIComponent(p.location || '')}`, { headers: { 'User-Agent': 'CRM-Inmobiliario/1.0 (web)' } })
+          .then((r) => r.json())
+          .then((list) => {
+            const hit = Array.isArray(list) && list[0];
+            if (!hit || !map.current) return;
+
+            const el = document.createElement('div');
+            el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#F59E0B;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer';
+            el.textContent = String(p.name?.charAt(0) || '').toUpperCase();
+            const mk = new maplibregl.Marker({ element: el })
+              .setLngLat([Number(hit.lon), Number(hit.lat)])
+              .setPopup(new maplibregl.Popup({ offset: 30 }).setHTML(`<b>${p.name}</b><br/>${p.location}<br/><a href="/projects/${p.id}" style="color:#E30620">Ver</a>`))
+              .addTo(map.current!);
+            markersRef.current.push(mk);
+            map.current!.flyTo({ center: [Number(hit.lon), Number(hit.lat)], zoom: 12 });
+          })
+          .catch(() => {});
+      });
+    }
 
     const content = (p: Project) => `
       <div style="min-width:220px; font-family:inherit">

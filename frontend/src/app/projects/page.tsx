@@ -14,6 +14,7 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [canEdit, setCanEdit] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
   const [openMap, setOpenMap] = useState(false);
   const [form, setForm] = useState<any>({});
   const [cover, setCover] = useState<File | null>(null);
@@ -31,6 +32,34 @@ export default function ProjectsPage() {
       if (cover) { await uploadFile(`/projects/cover/${created?.id || 1}`, cover); }
       toast('Proyecto creado');
       setOpenCreate(false); setForm({}); setCover(null);
+      api.get<any>('/projects').then(setProjects).catch(() => {});
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  function abrirEdicion(p: Project) {
+    setForm({
+      name: p.name,
+      description: p.description || '',
+      location: p.location || '',
+      latitude: p.latitude != null ? String(p.latitude) : '',
+      longitude: p.longitude != null ? String(p.longitude) : '',
+      referencePrice: p.referencePrice ? String(p.referencePrice) : '',
+    });
+    setEditId(p.id);
+  }
+
+  async function guardarProyecto() {
+    if (!form.name) return toast('Ingresa el nombre', 'err');
+    try {
+      await api.post(`/projects/update/${editId}`, {
+        name: form.name,
+        description: form.description || undefined,
+        location: form.location || undefined,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
+      });
+      toast('Proyecto actualizado');
+      setEditId(null); setForm({});
       api.get<any>('/projects').then(setProjects).catch(() => {});
     } catch (e: any) { toast(e.message, 'err'); }
   }
@@ -99,6 +128,7 @@ export default function ProjectsPage() {
                     <label className="btn-neutral !h-8 text-xs cursor-pointer inline-flex items-center gap-1">
                       📷 <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; reemplazarImagen(p.id, f); }} />Actualizar imagen
                     </label>
+                    <button className="btn-neutral !h-8 text-xs" onClick={() => abrirEdicion(p)}>Actualizar ubicación</button>
                     <button className="btn-danger !h-8 text-xs" onClick={() => eliminarProyecto(p.id)}>Eliminar proyecto</button>
                   </div>
                 )}
@@ -126,6 +156,26 @@ export default function ProjectsPage() {
             <div className="flex justify-end gap-2 pt-2">
               <button className="btn-neutral" onClick={() => setOpenCreate(false)}>Cancelar</button>
               <button className="btn-primary" onClick={crearProyecto}>Crear proyecto</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {editId != null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setEditId(null); setForm({}); }} />
+          <div className="relative bg-white rounded-2xl w-full max-w-lg p-6 max-h-[92vh] overflow-y-auto">
+            <h3 className="font-semibold mb-1" style={{ fontSize: 17 }}>Actualizar proyecto</h3>
+            <p className="text-xs text-slate-500 mb-5">Cambia dirección o coordenadas para ubicarlo en el mapa.</p>
+            <Field label="Nombre *"><input className="input" value={form.name || ''} onChange={(e) => setf('name', e.target.value)} /></Field>
+            <Field label="Ubicación / dirección"><input className="input" value={form.location || ''} onChange={(e) => setf('location', e.target.value)} /></Field>
+            <Field label="Descripción"><textarea className="input" value={form.description || ''} onChange={(e) => setf('description', e.target.value)} /></Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Latitud (mapa)"><input className="input" value={form.latitude || ''} onChange={(e) => setf('latitude', e.target.value)} /></Field>
+              <Field label="Longitud (mapa)"><input className="input" value={form.longitude || ''} onChange={(e) => setf('longitude', e.target.value)} /></Field>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button className="btn-neutral" onClick={() => { setEditId(null); setForm({}); }}>Cancelar</button>
+              <button className="btn-primary" onClick={guardarProyecto}>Guardar cambios</button>
             </div>
           </div>
         </div>

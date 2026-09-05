@@ -28,14 +28,40 @@ export class ProjectsService {
     await this.auditRepo.save({ userId, action, entity, entityId });
   }
 
+  private async geocode(location?: string): Promise<{ latitude?: number; longitude?: number }> {
+    if (!location || !location.trim()) return {};
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=${encodeURIComponent(location)}`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'CRM-Inmobiliario/1.0 (dev)' },
+      });
+      if (!res.ok) return {};
+      const list = await res.json();
+      const hit = Array.isArray(list) && list[0];
+      if (hit && hit.lat != null && hit.lon != null) {
+        return { latitude: Number(hit.lat), longitude: Number(hit.lon) };
+      }
+      return {};
+    } catch {
+      return {};
+    }
+  }
+
   async create(dto: CreateProjectDto, actorId: number) {
+    let lat = dto.latitude;
+    let lng = dto.longitude;
+    const shouldGeocode = (lat == null || lng == null);
+    if (shouldGeocode) {
+      const g = await this.geocode(dto.location);
+      if (g.latitude != null && g.longitude != null) { lat = g.latitude; lng = g.longitude; }
+    }
     const project = this.projectRepo.create({
       name: dto.name,
       description: dto.description,
       location: dto.location,
       status: dto.status || 'active',
-      latitude: dto.latitude != null ? String(dto.latitude) : null,
-      longitude: dto.longitude != null ? String(dto.longitude) : null,
+      latitude: lat != null ? String(lat) : null,
+      longitude: lng != null ? String(lng) : null,
       referencePrice: dto.referencePrice != null ? String(dto.referencePrice) : null,
     } as DeepPartial<ProjectEntity>);
     const saved = await this.projectRepo.save(project);
@@ -71,10 +97,23 @@ export class ProjectsService {
   async update(id: number, dto: CreateProjectDto, actorId: number) {
     const project = await this.projectRepo.findOne({ where: { id } });
     if (!project) throw new NotFoundException('Proyecto no encontrado');
-    Object.assign(project, dto);
-    if (dto.latitude != null) project.latitude = String(dto.latitude);
-    if (dto.longitude != null) project.longitude = String(dto.longitude);
+
+    let lat = dto.latitude ?? Number(project.latitude);
+    let lng = dto.longitude ?? Number(project.longitude);
+    const wantsGeo = (lat == null || isNaN(lat) || lng == null || isNaN(lng));
+    if (wantsGeo && !dto.latitude && !dto.longitude) {
+      const g = await this.geocode(dto.location || project.location || '');
+      if (g.latitude != null && g.longitude != null) { lat = g.latitude; lng = g.longitude; }
+    }
+
+    Object.assign(project, { ...dto, latitude: undefined, longitude: undefined });
+    project.name = dto.name ?? project.name;
+    if (dto.description !== undefined) project.description = dto.description;
+    if (dto.location !== undefined) project.location = dto.location;
+    if (dto.status !== undefined) project.status = dto.status;
     if (dto.referencePrice != null) project.referencePrice = String(dto.referencePrice);
+    if (lat != null && !isNaN(lat)) project.latitude = String(lat);
+    if (lng != null && !isNaN(lng)) project.longitude = String(lng);
     const saved = await this.projectRepo.save(project);
     await this.audit(actorId, 'EDITAR_PROYECTO', 'projects', id);
     return saved;
