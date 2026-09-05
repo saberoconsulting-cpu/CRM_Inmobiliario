@@ -145,7 +145,7 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
   return (
     <div className="flex h-full min-h-[520px] flex-col overflow-hidden md:flex-row">
       <aside
-        className="w-full shrink-0 overflow-y-auto border-b bg-white md:w-[360px] md:border-b-0 md:border-r"
+        className="w-full shrink-0 overflow-y-auto border-b bg-white md:w-[300px] md:border-b-0 md:border-r"
         style={{ borderColor: '#E5E7EB', maxHeight: '100%' }}
       >
         <div className="border-b px-4 py-3" style={{ borderColor: '#EEF0F2' }}>
@@ -162,9 +162,9 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
                 style={{ borderColor: isA ? '#E30620' : '#E7E9EC', background: isA ? '#FFF7F7' : '#fff' }}>
                 <div className="relative">
                   {p.coverImageUrl ? (
-                    <img src={p.coverImageUrl} alt="" className="h-32 w-full object-cover" />
+                    <img src={p.coverImageUrl} alt="" className="h-14 w-full object-cover" />
                   ) : (
-                    <div className="grid h-32 w-full place-items-center text-slate-300" style={{ background: '#F3F4F6' }}>Sin imagen</div>
+                    <div className="grid h-14 w-full place-items-center text-xs text-slate-300" style={{ background: '#F3F4F6' }}>Sin imagen</div>
                   )}
                   <span className="absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase"
                     style={{ color: st1.c, background: st1.b }}>{st1.t}</span>
