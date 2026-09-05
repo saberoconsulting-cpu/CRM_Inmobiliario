@@ -96,13 +96,7 @@ export default function LotesPage() {
                   </div>
                   <span className="text-xs" style={{ color: '#94a3b8' }}>{blockOf(g.k)} · {g.items.length}</span>
                 </div>
-                <div className="hidden items-center gap-x-4 border-b px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide sm:grid sm:grid-cols-[minmax(0,1fr)_64px_150px_130px_auto]" style={{ borderColor: '#E5E7EB', color: '#6B7280' }}>
-                  <span>Lote / Proyecto</span>
-                  <span className="text-right sm:text-left">Área</span>
-                  <span className="text-right">Precio</span>
-                  <span>Estado</span>
-                  <span className="text-right">Acción</span>
-                </div>
+
                 <div>
                   {g.items.map((l) => (
                     <div key={l.id} className="grid items-center gap-x-4 gap-y-2 border-b px-4 py-2.5 hover:bg-slate-50 last:border-0 sm:grid-cols-[minmax(0,1fr)_64px_150px_130px_auto]" onClick={() => setSelected(l.id)} style={{ borderColor: '#F0F1F3', minHeight: 44 }}>

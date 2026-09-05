@@ -131,7 +131,7 @@ export default function ProfilePage() {
         <div className="min-w-0 space-y-5">
         {/* Selector: Datos / Rendimiento */}
         <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
-          {([['info', 'Datos y contacto'], ['stats', 'Rendimiento y negocio']] as const).map(([k, label]) => (
+          {([['info', 'Datos y contacto']] as const).map(([k, label]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition ${tab === k ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-800'}`}>
               {label}
