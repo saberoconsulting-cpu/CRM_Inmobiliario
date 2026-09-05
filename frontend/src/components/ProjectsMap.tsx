@@ -195,7 +195,7 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
       </aside>
       {/* B. Mapa principal a la derecha */}
       <div className="relative min-w-0 flex-1">
-        <div ref={host} className="absolute inset-0" />
+        <div ref={host} style={{ height: 560, width: '100%' }} className="block" />
         {projects.length === 0 && (
           <div className="absolute inset-0 grid place-items-center px-6 text-center text-sm text-slate-500">
             Aún no hay proyectos. Crea uno y geolocalízalo para verlo aquí.
