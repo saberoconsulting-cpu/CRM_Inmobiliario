@@ -10,7 +10,21 @@ interface Props {
 }
 
 const DEFAULT_CENTER: [number, number] = [-77.0369, -12.0464]; // Lima
-const TILE_URL = 'https://tiles.openfreemap.org/styles/liberty'; // calles/OSM gratuitas
+
+const OSM_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: 'raster',
+      tiles: ['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png', 'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '© OpenStreetMap',
+    },
+  },
+  layers: [
+    { id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 },
+  ],
+};
 
 export default function ProjectsMap({ projects, onOpen }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -83,12 +97,13 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
     if (!ref.current || map.current) return;
     const m = new maplibregl.Map({
       container: ref.current,
-      style: TILE_URL,
+      style: OSM_STYLE,
       center: DEFAULT_CENTER,
       zoom: 5,
     });
+    m.dragPan && m.setMaxZoom(18);
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-    m.on('load', () => renderMarkers(m));
+    m.on('load', () => { m.resize(); setTimeout(() => renderMarkers(m), 60); });
     map.current = m;
     return () => { map.current?.remove(); map.current = null; markersRef.current = []; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,7 +117,7 @@ export default function ProjectsMap({ projects, onOpen }: Props) {
   }, [projects]);
 
   return (
-    <div className="relative w-full h-[72vh] rounded-2xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
+    <div className="relative w-full h-full min-h-[420px] rounded-2xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
       <div ref={ref} className="absolute inset-0" />
       {projects.length > 0 && !projects.some((p) => Number(p.latitude)) && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs rounded-full px-4 py-2">
