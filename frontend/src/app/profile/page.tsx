@@ -190,7 +190,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Panel derecho: evita el vacío y es uso rápido */}
-        <aside className="space-y-4 xl:mt-11 xl:sticky xl:top-8">
+        <aside className="space-y-4 xl:mt-[72px] xl:sticky xl:top-8">
           <div className="card">
             <h3 className="font-semibold mb-3">Accesos rápidos</h3>
             <div className="grid grid-cols-2 gap-2 text-xs">
