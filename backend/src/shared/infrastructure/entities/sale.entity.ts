@@ -39,6 +39,25 @@ export class SaleEntity {
   @Column({ length: 20, default: 'cerrada' })
   status: string;
 
+  // --- Ampliado (migración 1710000000002) ---
+  @Column({ name: 'approval_status', length: 20, default: 'pendiente' })
+  approvalStatus: string;
+
+  @Column({ name: 'total_cuotas', type: 'int', default: 0 })
+  totalCuotas: number;
+
+  @Column({ name: 'valor_cuota', type: 'numeric', precision: 14, scale: 2, default: 0 })
+  valorCuota: string;
+
+  @Column({ name: 'plan_status', length: 20, default: 'pendiente' })
+  planStatus: string;
+
+  @Column({ name: 'approved_by', nullable: true })
+  approvedBy: number;
+
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true })
+  approvedAt: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

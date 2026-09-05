@@ -26,7 +26,6 @@ export default function InteractivePlan({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [t, setT] = useState({ x: 0, y: 0 });
-  const [drag, setDrag] = useState<null | { sx: number; sy: number; ox: number; oy: number }>(null);
   const [tooltip, setTooltip] = useState<{ lot: Lot; x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -36,6 +35,8 @@ export default function InteractivePlan({
   const imgOffsetX = (SVG_W - imgW) / 2;
   const imgOffsetY = (SVG_H - imgH) / 2;
 
+  // El plano queda fijo (sin panning): su vista solo cambia con los botones + / − .
+  // Si no hay imagen asignada todavía, dejamos el SVG centrado completo.
   useEffect(() => {
     const fit = () => {
       const el = containerRef.current;
@@ -51,29 +52,20 @@ export default function InteractivePlan({
     return () => window.removeEventListener('resize', fit);
   }, []);
 
-  function zoomAt(clientX: number, clientY: number, factor: number) {
-    const rect = svgRef.current!.getBoundingClientRect();
-    const px = clientX - rect.left;
-    const py = clientY - rect.top;
+  // Zoom centrado en el plano (usado solo por los botones + / −).
+  function zoomCentered(factor: number) {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cw = rect.width || 0;
+    const ch = rect.height || 0;
+    const px = cw / 2;
+    const py = ch / 2;
     const next = Math.min(6, Math.max(0.4, scale * factor));
     const nx = px - ((px - t.x) / scale) * next;
     const ny = py - ((py - t.y) / scale) * next;
     setScale(next);
     setT({ x: nx, y: ny });
   }
-
-  function onWheel(e: any) {
-    zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1 / 1.2 : 1.2);
-  }
-
-  function onPointerDown(e: any) {
-    setDrag({ sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y });
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-  }
-  function onPointerMove(e: any) {
-    if (drag) setT({ x: drag.ox + (e.clientX - drag.sx), y: drag.oy + (e.clientY - drag.sy) });
-  }
-  function onPointerUp() { setDrag(null); }
 
   const centroid = (pts: Point[]) =>
     pts.reduce((a, p) => ({ x: a.x + p.x / pts.length, y: a.y + p.y / pts.length }), { x: 0, y: 0 });
@@ -83,15 +75,11 @@ export default function InteractivePlan({
       ref={containerRef}
       className="relative w-full h-full overflow-hidden rounded-lg select-none touch-none"
       style={{ aspectRatio: `${SVG_W}/${SVG_H}`, background: '#EEEFF1' }}
-      onWheel={onWheel}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={() => { setDrag(null); setTooltip(null); }}
+      onMouseLeave={() => setTooltip(null)}
     >
       <svg
         ref={svgRef}
-        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+        className="absolute inset-0 w-full h-full cursor-default"
         viewBox={`${-t.x / scale} ${-t.y / scale} ${SVG_W / scale} ${SVG_H / scale}`}
       >
           {imageUrl && (
@@ -153,10 +141,10 @@ export default function InteractivePlan({
           )}
         </svg>
 
-        <div className="absolute top-3 right-3 flex flex-col gap-1.5">
-          <button onClick={() => zoomAt(innerWidth / 2, innerHeight / 2, 1.2)} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-bold text-lg">+</button>
-          <button onClick={() => zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.2)} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-bold text-lg">−</button>
-          <button onClick={() => { const el = containerRef.current; if (el) { const cw = el.clientWidth || 800; const ch = el.clientHeight || 600; const s = Math.min(cw / SVG_W, ch / SVG_H); setScale(s); setT({ x: (cw - SVG_W * s) / 2, y: (ch - SVG_H * s) / 2 }); } }} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-semibold text-sm" title="Restablecer vista">⟳</button>
+        <div className="absolute top-3 right-3 z-10 flex flex-col gap-1.5">
+          <button type="button" onClick={() => zoomCentered(1.25)} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-bold text-lg" title="Acercar (+)">+</button>
+          <button type="button" onClick={() => zoomCentered(0.8)} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-bold text-lg" title="Alejar (−)">−</button>
+          <button type="button" onClick={() => { const el = containerRef.current; if (el) { const cw = el.clientWidth || 800; const ch = el.clientHeight || 600; const s = Math.min(cw / SVG_W, ch / SVG_H); setScale(s); setT({ x: (cw - SVG_W * s) / 2, y: (ch - SVG_H * s) / 2 }); } }} className="bg-white/90 hover:bg-white rounded-lg w-9 h-9 text-slate-700 shadow font-semibold text-sm" title="Restablecer vista (encuadre inicial)">⟳</button>
         </div>
       </div>
     );

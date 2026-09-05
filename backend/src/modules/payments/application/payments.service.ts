@@ -32,12 +32,16 @@ export class PaymentsService {
 
   async register(dto: CreatePaymentDto, actorId: number) {
     const lot = await this.lotRepo.findOne({ where: { id: dto.lotId } });
+    const clientRaw = dto.clientId ?? lot?.clientId ?? undefined;
+    const agentRaw = dto.agentId ?? lot?.agentId ?? undefined;
+    const clientId = typeof clientRaw === 'number' ? clientRaw : undefined;
+    const agentId = typeof agentRaw === 'number' ? agentRaw : undefined;
 
     const payment = this.paymentRepo.create({
       projectId: dto.projectId,
       lotId: dto.lotId,
-      clientId: dto.clientId ?? lot?.clientId,
-      agentId: dto.agentId ?? lot?.agentId,
+      clientId,
+      agentId,
       type: dto.type,
       amount: String(dto.amount),
       dueDate: dto.dueDate || undefined,
@@ -49,12 +53,15 @@ export class PaymentsService {
     // Si no hay fecha de vencimiento, se considera pago inmediato (pagado)
     if (!dto.dueDate) payment.status = 'pagado';
     const saved = await this.paymentRepo.save(payment);
+    if (!saved || !saved.id) {
+      throw new Error('No se pudo registrar el pago');
+    }
 
     // Registrar movimiento financiero inmutable (ingreso)
     await this.txnRepo.save({
       projectId: dto.projectId,
       lotId: dto.lotId,
-      clientId: dto.clientId ?? lot?.clientId,
+      clientId,
       paymentId: saved.id,
       createdBy: actorId,
       type: 'ingreso',

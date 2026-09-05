@@ -57,6 +57,11 @@ export class FinancesController {
     return this.financesService.expensesList(projectId ? Number(projectId) : undefined);
   }
 
+  @Get('income-statement')
+  incomeStatement(@Query('projectId') projectId?: string) {
+    return this.financesService.incomeStatement(projectId ? Number(projectId) : undefined);
+  }
+
   @Post('expense')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   registerExpense(@Body() dto: CreateExpenseDto, @CurrentUser('id') actorId: number) {

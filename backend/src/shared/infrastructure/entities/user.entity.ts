@@ -24,6 +24,12 @@ export class UserEntity {
   @Column({ length: 50, nullable: true })
   phone: string;
 
+  @Column({ length: 30, nullable: true })
+  whatsapp: string;
+
+  @Column({ type: 'text', nullable: true })
+  bio: string;
+
   @Column({ length: 20, default: 'agent' })
   role: string;
 

@@ -5,10 +5,12 @@ import { Toaster, toast, Field, EmptyState, StatCard } from '@/components/ui';
 import { api } from '@/lib/api';
 import { formatMoney, formatDate } from '@/lib/types';
 
-type S = { id: number; projectId: number; lotId: number; clientId?: number | null; agentId?: number | null; salePrice: string; saleDate: string; commission: string; agentName?: string | null; lotCode?: string | null; conditions?: string | null };
+type S = { id: number; projectId: number; lotId: number; clientId?: number | null; agentId?: number | null; salePrice: string; saleDate: string; commission: string; agentName?: string | null; lotCode?: string | null; conditions?: string | null; approvalStatus?: string; totalCuotas?: number };
 
 export default function SalesPage() {
   const [rows, setRows] = useState<S[]>([]);
+  const [pending, setPending] = useState<any[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -21,20 +23,30 @@ export default function SalesPage() {
   const [clientId, setClientId] = useState(0);
   const [agentId, setAgentId] = useState(0);
   const [salePrice, setSalePrice] = useState(0);
+  const [totalCuotas, setTotalCuotas] = useState(0);
   const [saleDate, setSaleDate] = useState('');
   const [conditions, setConditions] = useState('');
 
+  const role = (() => { if (typeof window !== 'undefined') try { return JSON.parse(localStorage.getItem('crm_user') || '{}').role; } catch { return ''; } return ''; })();
+
   const load = useCallback(async () => {
-    try { setRows((await api.get<S[]>('/sales')) || []); } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
-  }, []);
+    try {
+      const data = await api.get<S[]>('/sales');
+      setRows(data || []);
+      if (role === 'admin' || role === 'superadmin') {
+        try { setPending((await api.get<any[]>('/sales/pending')) || []); } catch { setPending([]); }
+      }
+    } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
+  }, [role]);
 
   useEffect(() => {
+    setIsAdmin(role === 'admin' || role === 'superadmin');
     load();
     api.get<any[]>('/projects').then(setProjects).catch(() => {});
     api.get<any[]>('/clients').then(setClients).catch(() => {});
     api.get<any[]>('/users/agents').then(setAgents).catch(() => {});
     api.get<any[]>('/lots').then(setLots).catch(() => {});
-  }, [load]);
+  }, [load, role]);
 
   async function registrar() {
     if (!lotId) return toast('Selecciona un lote', 'err');
@@ -42,11 +54,20 @@ export default function SalesPage() {
     if (!salePrice) return toast('Ingresa el precio de venta', 'err');
     try {
       const lot = lots.find((l) => l.id === Number(lotId));
-      await api.post('/sales', { projectId: projectId || lot?.projectId || 1, lotId: Number(lotId), clientId: clientId || undefined, agentId: Number(agentId), salePrice, saleDate: saleDate || undefined, conditions: conditions || undefined });
-      toast('Venta registrada. El lote pasó a Vendido.');
-      setOpen(false); setLotId(0); setClientId(0); setConditions(''); setSalePrice(0); setSaleDate(''); setAgentId(0);
+      await api.post('/sales', { projectId: projectId || lot?.projectId || 1, lotId: Number(lotId), clientId: clientId || undefined, agentId: Number(agentId), salePrice, totalCuotas: totalCuotas || undefined, saleDate: saleDate || undefined, conditions: conditions || undefined });
+      toast('Separación registrada. Queda pendiente de validación.');
+      setOpen(false); setLotId(0); setClientId(0); setConditions(''); setSalePrice(0); setTotalCuotas(0); setSaleDate(''); setAgentId(0);
       load();
     } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  async function aprobar(s: any) {
+    try { await api.post(`/sales/approve/${s.id}`); toast('Separación aprobada. Lote vendido.'); load(); }
+    catch (e: any) { toast(e.message, 'err'); }
+  }
+  async function rechazar(s: any) {
+    try { await api.post(`/sales/reject/${s.id}`); toast('Separación rechazada. Lote liberado.'); load(); }
+    catch (e: any) { toast(e.message, 'err'); }
   }
 
   const total = rows.reduce((s, r) => s + Number(r.salePrice || 0), 0);
@@ -68,14 +89,37 @@ export default function SalesPage() {
             <button className="btn-primary" onClick={() => setOpen(true)}>Registrar venta</button>
           </div>
           <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Un lote Vendido no puede volver a venderse. El sistema lo valida.</p>
-        </div>
+        {isAdmin && pending.length > 0 && (
+          <div className="card">
+            <h3 className="font-semibold mb-2">Separaciones por aprobar ({pending.length})</h3>
+            <div className="overflow-auto">
+              <table className="table-base">
+                <thead><tr><th className="th-base">Lote</th><th className="th-base">Precio</th><th className="th-base">Cuotas</th><th className="th-base">Acción</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pending.map((s: any) => (
+                    <tr key={s.id}>
+                      <td className="td-base font-medium">Lote {s.lotId}</td>
+                      <td className="td-base">{formatMoney(s.salePrice)}</td>
+                      <td className="td-base">{s.totalCuotas || 0}</td>
+                      <td className="td-base">
+                        <button className="btn-primary !h-7 text-xs mr-1" onClick={() => aprobar(s)}>Aprobar</button>
+                        <button className="btn-danger !h-7 text-xs" onClick={() => rechazar(s)}>Rechazar</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+</div>
         <div className="card p-0 overflow-auto">
           {loading ? <p className="p-4 text-slate-400">Cargando…</p>
             : rows.length === 0 ? <EmptyState text="Aún no hay ventas registradas." /> : (
             <table className="table-base">
               <thead><tr>
                 <th className="th-base">Lote</th><th className="th-base">Cliente</th><th className="th-base">Agente</th>
-                <th className="th-base">Precio</th><th className="th-base">Comisión</th><th className="th-base">Fecha</th>
+                <th className="th-base">Precio</th><th className="th-base">Cuotas</th><th className="th-base">Estado</th><th className="th-base">Fecha</th>
               </tr></thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((s) => (
@@ -84,7 +128,8 @@ export default function SalesPage() {
                     <td className="td-base">{s.clientId ? `Cliente #${s.clientId}` : '—'}</td>
                     <td className="td-base">{s.agentName || '—'}</td>
                     <td className="td-base font-medium">{formatMoney(s.salePrice)}</td>
-                    <td className="td-base">{formatMoney(s.commission)}</td>
+                    <td className="td-base">{s.totalCuotas || 'Contado'}</td>
+                    <td className="td-base">{s.approvalStatus === 'pending' ? <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background:'#FEF3C7', color:'#92400E' }}>Pendiente</span> : <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background:'#D1FAE5', color:'#065F46' }}>Aprobada</span>}</td>
                     <td className="td-base">{formatDate(s.saleDate)}</td>
                   </tr>
                 ))}
@@ -115,7 +160,10 @@ export default function SalesPage() {
               <Field label="Precio de venta (S/) *"><input type="number" className="input" value={salePrice} onChange={(e) => setSalePrice(Number(e.target.value))} /></Field>
               <Field label="Fecha"><input type="date" className="input" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
             </div>
-            <Field label="Condiciones"><textarea className="input" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
+            <div className="mt-3">
+              <Field label="Nº de cuotas (0 = contado, se genera cronograma al aprobar)"><input type="number" min={0} max={120} className="input" value={totalCuotas} onChange={(e) => setTotalCuotas(Number(e.target.value))} /></Field>
+            </div>
+            <Field label="Condiciones"><textarea className="input mt-3" value={conditions} onChange={(e) => setConditions(e.target.value)} /></Field>
             <div className="flex justify-end gap-2 pt-2">
               <button className="btn-neutral" onClick={() => setOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={registrar}>Registrar venta</button>

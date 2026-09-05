@@ -18,6 +18,15 @@ export class CreateSaleDto {
   @IsNumber()
   salePrice!: number;
 
+  // Fraccionamiento opcional
+  @IsOptional()
+  @IsNumber()
+  totalCuotas?: number;
+
+  @IsOptional()
+  @IsNumber()
+  valorCuota?: number;
+
   @IsOptional()
   @IsString()
   saleDate?: string;

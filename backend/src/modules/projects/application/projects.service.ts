@@ -98,7 +98,16 @@ export class ProjectsService {
     return project;
   }
 
-  // Detalle completo para el dashboard de proyecto
+  async deleteProject(id: number, actorId: number) {
+    const project = await this.projectRepo.findOne({ where: { id } });
+    if (!project) throw new NotFoundException('Proyecto no encontrado');
+    // Las tablas de dominio (plan, bloques, lotes, ventas/pagos, user_projects)
+    // están ligadas con ON DELETE CASCADE definido en el esquema.
+    await this.projectRepo.remove(project);
+    await this.audit(actorId, 'ELIMINAR_PROYECTO', 'projects', id).catch(() => {});
+    return { ok: true };
+  }
+
   async dashboard(id: number) {
     const project = await this.getOne(id);
     const plan = await this.planRepo.findOne({ where: { projectId: id } });

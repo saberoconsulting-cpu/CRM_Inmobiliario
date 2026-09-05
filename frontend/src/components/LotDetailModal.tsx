@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, toast, StatusBadge, Field } from './ui';
 import { api } from '@/lib/api';
-import { LOT_STATUS_LABEL, LotStatus, formatMoney, formatDate } from '@/lib/types';
+import { LOT_STATUS_COLOR, LOT_STATUS_LABEL, LotStatus, formatMoney, formatDate } from '@/lib/types';
 
 type Row = { id: number; lotId: number; fromStatus: string; toStatus: string; createdAt: string; type?: string; amount?: string|number; paidAt?: string }
 
@@ -38,15 +38,25 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
     catch (e:any){ toast(e.message,'err'); } finally { setWorking(false); }
   }
 
+  const statusColor = lot ? ((LOT_STATUS_COLOR as any)[lot.status] || '#64748b') : '#64748b';
+
   if (!lotId) return null;
   return (
     <Modal open={!!lot} onClose={onClose} title={lot ? `Lote ${lot.code}` : ''} width="max-w-2xl">
       {lot && (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge status={lot.status} />
-            <span className="text-sm">{lot.areaM2} m²</span>
-            <span className="text-xl font-bold text-brand-700">{formatMoney(lot.price)}</span>
+          {/* Cabecera de estado dinámica — se repinta cuando el lote cambia de estado */}
+          <div className="rounded-2xl px-4 py-4 text-white shadow-sm" style={{ background: statusColor }}>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="text-[11px] uppercase tracking-wider opacity-80">Estado actual del lote {lot.code}</div>
+                <div className="text-2xl font-bold capitalize -mt-0.5">{LOT_STATUS_LABEL[lot.status as LotStatus] || lot.status}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] uppercase tracking-wider opacity-80">{lot.areaM2} m²</div>
+                <div className="text-xl font-extrabold">{formatMoney(lot.price)}</div>
+              </div>
+            </div>
           </div>
           <div className="border-t pt-4">
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Registrar pago</h4>

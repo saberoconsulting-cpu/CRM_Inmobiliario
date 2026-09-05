@@ -36,11 +36,15 @@ export class LotEntity {
   @Column({ length: 20, default: 'disponible' })
   status: string;
 
-  @Column({ name: 'client_id', nullable: true })
-  clientId: number;
+  @Column({ name: 'client_id', type: 'bigint', nullable: true })
+  clientId!: number | null;
 
-  @Column({ name: 'agent_id', nullable: true })
-  agentId: number;
+  @Column({ name: 'agent_id', type: 'bigint', nullable: true })
+  agentId!: number | null;
+
+  // --- Ampliado: etapa de venta comercial (no altera el CHECK de status) ---
+  @Column({ name: 'selling_stage', length: 20, default: 'disponible' })
+  sellingStage: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

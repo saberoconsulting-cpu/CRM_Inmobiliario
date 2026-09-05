@@ -17,8 +17,12 @@ export class ExpenseEntity {
   @Column({ name: 'campaign_id', nullable: true })
   campaignId: number;
 
-  @Column({ length: 80 })
+  @Column({ name: 'category', length: 80 })
   category: string;
+
+  // --- Ampliado: familia de gasto para reportes (migración 1710000000002) ---
+  @Column({ name: 'expense_class', length: 30, default: 'operacion' })
+  expenseClass: string;
 
   @Column({ length: 255 })
   concept: string;

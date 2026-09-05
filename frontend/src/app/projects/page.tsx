@@ -33,6 +33,25 @@ export default function ProjectsPage() {
     } catch (e: any) { toast(e.message, 'err'); }
   }
 
+  async function reemplazarImagen(id: number, f?: File) {
+    if (!f) return;
+    try {
+      const p = await uploadFile(`/projects/cover/${id}`, f);
+      setProjects((prev) => prev.map((x) => (x.id === id ? { ...x, coverImageUrl: p?.coverImageUrl ?? x.coverImageUrl } : x)));
+      toast('Imagen de portada actualizada');
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  async function eliminarProyecto(id: number) {
+    const proyecto = projects.find((p) => p.id === id);
+    if (!confirm(`¿Eliminar el proyecto "${proyecto?.name || 'Proyecto'}"?\nSe quitarán también planos, manzanas, lotes, ventas y pagos de ese proyecto. Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.post(`/projects/delete/${id}`);
+      toast('Proyecto eliminado');
+      setProjects((prev) => prev.filter((x) => x.id !== id));
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
+
   useEffect(() => {
     const role = JSON.parse(localStorage.getItem('crm_user') || '{}').role;
     setCanEdit(role === 'superadmin' || role === 'admin');
@@ -72,6 +91,14 @@ export default function ProjectsPage() {
                   </div>
                 )}
                 {p.referencePrice && <div className="text-xs text-slate-400 mb-3">Precio ref: {formatMoney(p.referencePrice)}</div>}
+                {canEdit && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <label className="btn-neutral !h-8 text-xs cursor-pointer inline-flex items-center gap-1">
+                      📷 <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; reemplazarImagen(p.id, f); }} />Actualizar imagen
+                    </label>
+                    <button className="btn-danger !h-8 text-xs" onClick={() => eliminarProyecto(p.id)}>Eliminar proyecto</button>
+                  </div>
+                )}
                 <button className="btn-primary w-full justify-center" onClick={() => router.push(`/projects/${p.id}`)}>Ver proyecto y plano</button>
               </div>
             </div>

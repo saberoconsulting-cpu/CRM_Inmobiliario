@@ -57,6 +57,15 @@ export class ProjectsController {
     return this.projectsService.update(id, dto, actorId);
   }
 
+  @Post('delete/:id')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser('id') actorId: number,
+  ) {
+    return this.projectsService.deleteProject(id, actorId);
+  }
+
   @Post('status/:id/:status')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   setStatus(

@@ -11,6 +11,7 @@ const CATS = ['marketing', 'mantenimiento', 'obra', 'administracion', 'comisione
 
 export default function FinancesPage() {
   const [summary, setSummary] = useState<any>(null);
+  const [statement, setStatement] = useState<any>(null);
   const [txns, setTxns] = useState<T[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,11 +25,12 @@ export default function FinancesPage() {
 
   const load = useCallback(async () => {
     try {
-      const [s, t] = await Promise.all([
+      const [s, t, st] = await Promise.all([
         api.get<any>('/finances/summary?period=monthly'),
         api.get<any[]>(cat ? `/finances/transactions?category=${cat}` : '/finances/transactions'),
+        api.get<any>('/finances/income-statement'),
       ]);
-      setSummary(s); setTxns(t || []);
+      setSummary(s); setTxns(t || []); setStatement(st);
     } catch (e: any) { toast(e.message, 'err'); } finally { setLoading(false); }
   }, [cat]);
 
@@ -37,7 +39,7 @@ export default function FinancesPage() {
   async function addEgreso() {
     if (!eForm.concept || !eForm.amount) return toast('Completa concepto y monto', 'err');
     try {
-      await api.post('/finances/expense', { projectId: eForm.projectId || null, category: eForm.category || 'otros', concept: eForm.concept, amount: Number(eForm.amount) });
+      await api.post('/finances/expense', { projectId: eForm.projectId || null, expenseClass: eForm.expenseClass || 'operacion', category: eForm.category || 'otros', concept: eForm.concept, amount: Number(eForm.amount) });
       toast('Egreso registrado'); setOpenExp(false); setEForm({}); load();
     } catch (e: any) { toast(e.message, 'err'); }
   }
@@ -61,6 +63,37 @@ export default function FinancesPage() {
           <StatCard label="Utilidad estimada" value={formatMoney(income - expense)} color={income - expense >= 0 ? '#125A3B' : '#A90318'} />
           <StatCard label="Movimientos" value={txns.length} />
         </div>
+        {statement && (
+          <div className="card">
+            <h3 className="font-semibold mb-3">Estado de resultados (por familia de gasto)</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="rounded-xl p-3" style={{ background:'#F0FDF4' }}>
+                <div className="text-xs" style={{ color:'#16A34A' }}>Ingresos</div>
+                <div className="text-lg font-bold" style={{ color:'#125A3B' }}>{formatMoney(statement.ingresos)}</div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background:'#FFF7ED' }}>
+                <div className="text-xs" style={{ color:'#EA580C' }}>Compra de terreno</div>
+                <div className="text-lg font-bold" style={{ color:'#9A3412' }}>{formatMoney((statement.egresos_clasificados || {}).compra_terreno)}</div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background:'#F1F5F9' }}>
+                <div className="text-xs" style={{ color:'#0F766E' }}>Inversión (construcción)</div>
+                <div className="text-lg font-bold" style={{ color:'#0F766E' }}>{formatMoney((statement.egresos_clasificados || {}).inversion)}</div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background:'#EEE7FF' }}>
+                <div className="text-xs" style={{ color:'#6D28D9' }}>Financiamiento</div>
+                <div className="text-lg font-bold" style={{ color:'#5B21B6' }}>{formatMoney((statement.egresos_clasificados || {}).financiamiento)}</div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background:'#FFF1F3' }}>
+                <div className="text-xs" style={{ color:'#DC2626' }}>Operación</div>
+                <div className="text-lg font-bold" style={{ color:'#991B1B' }}>{formatMoney((statement.egresos_clasificados || {}).operacion)}</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-6 mt-4 pt-3 border-t" style={{ borderColor:'#E2E8F0' }}>
+              <div><span className="text-sm" style={{ color:'#6B7280' }}>Total egresos:</span> <b>{formatMoney(statement.egresos_total)}</b></div>
+              <div><span className="text-sm" style={{ color:'#6B7280' }}>Utilidad:</span> <b style={{ color: Number(statement.utilidad) >= 0 ? '#125A3B' : '#991B1B' }}>{formatMoney(statement.utilidad)}</b></div>
+            </div>
+          </div>
+        )}
         <div className="card">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="font-semibold">Flujo financiero</h3>
@@ -109,6 +142,14 @@ export default function FinancesPage() {
               <Field label="Categoría"><select className="input" value={eForm.category || 'otros'} onChange={(e) => ef('category', e.target.value)}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
               <Field label="Monto (S/) *"><input type="number" className="input" value={eForm.amount || ''} onChange={(e) => ef('amount', e.target.value)} /></Field>
             </div>
+            <Field label="Clasificación de la inversión/gasto">
+              <select className="input" value={eForm.expenseClass || 'operacion'} onChange={(e) => ef('expenseClass', e.target.value)}>
+                <option value="operacion">Operación (G&A, comisiones, admin)</option>
+                <option value="inversion">Inversión / Construcción</option>
+                <option value="financiamiento">Financiamiento</option>
+                <option value="compra_terreno">Compra de terreno</option>
+              </select>
+            </Field>
             <Field label="Proyecto"><select className="input" value={eForm.projectId || ''} onChange={(e) => ef('projectId', e.target.value ? Number(e.target.value) : null)}><option value="">—</option>{projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
             <div className="flex justify-end gap-2 pt-2">
               <button className="btn-neutral" onClick={() => setOpenExp(false)}>Cancelar</button>

@@ -17,6 +17,7 @@ import { FinancialTransactionEntity } from './shared/infrastructure/entities/fin
 import { ExpenseEntity } from './shared/infrastructure/entities/expense.entity';
 import { LotStatusHistoryEntity } from './shared/infrastructure/entities/lot-status-history.entity';
 import { AuditLogEntity } from './shared/infrastructure/entities/audit-log.entity';
+import { SaleInstallmentEntity } from './shared/infrastructure/entities/sale-installment.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -45,6 +46,7 @@ import { DashboardsModule } from './modules/dashboards/dashboards.module';
         UserProjectEntity, ClientEntity, ClientContactEntity, CampaignEntity,
         SaleEntity, PaymentEntity, FinancialTransactionEntity, ExpenseEntity,
         LotStatusHistoryEntity, AuditLogEntity,
+        SaleInstallmentEntity,
       ],
       synchronize: false,
       logging: false,

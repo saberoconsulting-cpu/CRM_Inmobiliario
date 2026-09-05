@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Toaster, toast, StatCard, LegendChips, EmptyState } from '@/components/ui';
-import { api, getToken } from '@/lib/api';
+import { api, getToken, uploadFile } from '@/lib/api';
 import { getSocket, disconnectSocket } from '@/lib/socket';
 import InteractivePlan from '@/components/interactive-plan/InteractivePlan';
 import LotDetailModal from '@/components/LotDetailModal';
@@ -12,6 +12,7 @@ import { IoLocationSharp } from 'react-icons/io5';
 
 export default function ProjectPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const projectId = Number(params.id);
   const [project, setProject] = useState<any>(null);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -20,6 +21,35 @@ export default function ProjectPage() {
   const [stats, setStats] = useState<any>(null);
   const [blockFilter, setBlockFilter] = useState<number | null>(null);
   const [selectedLot, setSelectedLot] = useState<number | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+
+  useEffect(() => {
+    let role = 'agent';
+    try {
+      const meta = typeof window !== 'undefined' ? localStorage.getItem('crm_user') : '';
+      role = meta ? (JSON.parse(meta).role || 'agent') : 'agent';
+    } catch { /* sin sesión */ }
+    setCanEdit(role === 'superadmin' || role === 'admin');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function reemplazarPortada(f?: File) {
+    if (!f) return;
+    try {
+      const p = await uploadFile(`/projects/cover/${projectId}`, f);
+      setProject((pr: any | null) => ({ ...(pr || {}), coverImageUrl: p?.coverImageUrl || pr?.coverImageUrl }));
+      toast('Imagen de portada actualizada');
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
+
+  async function borrarProyecto() {
+    if (!confirm(`¿Eliminar "${project?.name || 'este proyecto'}"?\nSe quitarán plano, manzanas, lotes, ventas y pagos asociados. Esta acción es irreversible.`)) return;
+    try {
+      await api.post(`/projects/delete/${projectId}`);
+      toast('Proyecto eliminado');
+      router.replace('/projects');
+    } catch (e: any) { toast(e.message, 'err'); }
+  }
 
   async function loadAll() {
     try {
@@ -69,6 +99,14 @@ export default function ProjectPage() {
             <p className="text-slate-500 text-sm flex items-center gap-1"><IoLocationSharp /> {project.location}</p>
             {project.description && <p className="text-xs text-slate-400 mt-1">{project.description}</p>}
           </div>
+          {canEdit && (
+            <div className="flex flex-col gap-2">
+              <label className="btn-neutral !h-8 text-xs cursor-pointer inline-flex items-center gap-1">
+                📷 <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; reemplazarPortada(f); }} />Actualizar imagen
+              </label>
+              <button className="btn-danger !h-8 text-xs" onClick={borrarProyecto}>Eliminar proyecto</button>
+            </div>
+          )}
           <LegendChips />
         </div>
 

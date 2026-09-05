@@ -29,6 +29,7 @@ export class FinancesService {
       projectId: dto.projectId,
       campaignId: dto.campaignId,
       category: dto.category,
+      expenseClass: dto.expenseClass || 'operacion',
       concept: dto.concept,
       amount: String(dto.amount),
       expenseDate: dto.expenseDate || undefined,
@@ -140,5 +141,50 @@ export class FinancesService {
   async expensesList(projectId?: number) {
     const where = projectId ? { projectId } : {};
     return this.expenseRepo.find({ where, order: { expenseDate: 'DESC' } });
+  }
+
+  /** Estado de resultados: ingresos vs egresos por familia de gasto */
+  async incomeStatement(projectId?: number) {
+    const tq = this.txnRepo
+      .createQueryBuilder('t');
+    if (projectId) tq.where('t.project_id = :projectId', { projectId });
+    const totals = await tq
+      .select("COALESCE(SUM(CASE WHEN t.type='ingreso' THEN t.amount ELSE 0 END),0)", 'income')
+      .addSelect("COALESCE(SUM(CASE WHEN t.type='egreso' THEN t.amount ELSE 0 END),0)", 'egreso')
+      .getRawOne();
+    const income = Number(totals?.income || 0);
+    const egresosT = Number(totals?.egreso || 0);
+
+    // Egresos por expense_class sobre expenses (clasificación pedida)
+    const eq = this.expenseRepo.createQueryBuilder('e');
+    if (projectId) eq.where('e.project_id = :projectId', { projectId });
+    const byClass = await eq
+      .select('e.expense_class', 'cls')
+      .addSelect('COALESCE(SUM(e.amount),0)', 'total')
+      .groupBy('e.expense_class')
+      .getRawMany();
+
+    const clsTotals: Record<string, number> = {
+      inversion: 0,
+      financiamiento: 0,
+      compra_terreno: 0,
+      operacion: 0,
+    };
+    for (const r of byClass) clsTotals[r.cls || 'operacion'] = Number(r.total);
+
+    const egresosClasificados = {
+      inversion: clsTotals.inversion,
+      financiamiento: clsTotals.financiamiento,
+      compra_terreno: clsTotals.compra_terreno,
+      operacion: clsTotals.operacion,
+    };
+    const egresosTotal = Object.values(egresosClasificados).reduce((a, b) => a + b, 0);
+    return {
+      ingresos: income,
+      egresos_total: egresosT,
+      egresos_clasificados: egresosClasificados,
+      egresos_por_clases: egresosTotal,
+      utilidad: income - egresosT,
+    };
   }
 }

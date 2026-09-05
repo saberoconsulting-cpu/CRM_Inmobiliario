@@ -8,6 +8,10 @@ export class CreateExpenseDto {
   @IsOptional()
   campaignId?: number;
 
+  @IsOptional()
+  @IsString()
+  expenseClass?: 'inversion' | 'financiamiento' | 'compra_terreno' | 'operacion';
+
   @IsString()
   @IsNotEmpty()
   category!: string;

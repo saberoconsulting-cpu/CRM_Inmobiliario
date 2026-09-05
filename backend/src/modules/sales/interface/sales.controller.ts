@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
   UseGuards,
@@ -10,9 +12,12 @@ import {
 import { SalesService } from '../application/sales.service';
 import { CreateSaleDto } from '../application/dto/sale.dto';
 import { JwtAuthGuard } from '../../../shared/application/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../shared/application/guards/roles.guard';
+import { Roles } from '../../../shared/application/decorators/roles.decorator';
+import { UserRole } from '../../../shared/domain/enums';
 import { CurrentUser } from '../../../shared/application/decorators/current-user.decorator';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('sales')
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
@@ -34,6 +39,33 @@ export class SalesController {
       status,
       search,
     });
+  }
+
+  @Get('pending')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  pending() {
+    return this.salesService.pendingApprovals();
+  }
+
+  @Get(':id/schedule')
+  schedule(@Param('id', ParseIntPipe) id: number) {
+    return this.salesService.schedule(id);
+  }
+
+  @Post('approve/:id')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  approve(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') actorId: number) {
+    return this.salesService.approve(id, actorId);
+  }
+
+  @Post('reject/:id')
+  @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
+  reject(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('note') note: string | undefined,
+    @CurrentUser('id') actorId: number,
+  ) {
+    return this.salesService.reject(id, actorId, note);
   }
 
   @Post()
