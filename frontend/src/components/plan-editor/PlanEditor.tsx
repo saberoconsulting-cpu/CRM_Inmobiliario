@@ -55,6 +55,9 @@ export default function PlanEditor({ projectId }: { projectId: number }) {
   };
   // Conteo robusto: coincidencia por blockId o geometría contenida en la manzana.
   const countLotsIn = (b: Block) => lots.filter((l) => {
+    const codeGroup = String(l.code || '').trim().split(/[-_\s.]/)[0].trim().toUpperCase();
+    const blockName = String(b.name || '').trim().toUpperCase();
+    if (blockName && codeGroup && codeGroup === blockName) return true; // A-01 pertenece a manzana A aunque falte blockId
     if (l.blockId === b.id) return true;
     if (l.blockId != null) return false; // está en otra manzana
     const cx = l.points && l.points.length ? l.points.reduce((s, p) => s + p.x, 0) / l.points.length : NaN;
