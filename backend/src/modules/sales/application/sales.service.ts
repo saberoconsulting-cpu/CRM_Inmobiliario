@@ -202,6 +202,21 @@ export class SalesService {
     }));
   }
 
+  /** Financiación / venta vigente de un lote + cronograma de sus cuotas. */
+  async getByLot(lotId: number) {
+    const sale = await this.saleRepo.findOne({
+      where: { lotId },
+      order: { createdAt: 'DESC' } as any,
+    });
+    const installments = sale
+      ? await this.instRepo.find({
+          where: { saleId: sale.id },
+          order: { installmentNo: 'ASC' } as any,
+        })
+      : [];
+    return { sale, installments };
+  }
+
   /** Separaciones pendientes de aprobación (Admin/Tesorería). */
   async pendingApprovals() {
     return this.saleRepo.find({ where: { approvalStatus: 'pendiente' }, order: { createdAt: 'DESC' } as any });

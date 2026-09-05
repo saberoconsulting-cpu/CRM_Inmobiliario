@@ -15,13 +15,19 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
   const [amount, setAmount] = useState(0);
   const [payType, setPayType] = useState('reserva');
   const [working, setWorking] = useState(false);
+  const [fin, setFin] = useState<any>({ sale: null, installments: [] });
 
   async function load() {
     if (!lotId) return;
-    try { const d = await api.get<any>(`/lots/${lotId}`); setLot(d.lot); setHistory(d.history||[]); setPayments(d.payments||[]); }
+    try {
+      const d = await api.get<any>(`/lots/${lotId}`);
+      setLot(d.lot); setHistory(d.history || []); setPayments(d.payments || []);
+      const fin = await api.get<any>(`/sales/by-lot/${lotId}`).catch(() => ({ sale: null, installments: [] }));
+      setFin(fin);
+    }
     catch (e:any){ toast(e.message,'err'); }
   }
-  useEffect(() => { setLot(null); setHistory([]); setPayments([]); if (lotId) load(); }, [lotId]);
+  useEffect(() => { setLot(null); setHistory([]); setPayments([]); setFin({ sale: null, installments: [] } as any); if (lotId) load(); }, [lotId]);
 
   async function registerPayment() {
     if (!lot || !amount) return toast('Ingresa monto', 'err');
@@ -39,6 +45,17 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
   }
 
   const statusColor = lot ? ((LOT_STATUS_COLOR as any)[lot.status] || '#64748b') : '#64748b';
+
+  const paids = (payments as any[]) || [];
+  const amountPaid = paids.filter((p) => p.status === 'pagado').reduce((s: number, p) => s + Number(p.amount || 0), 0);
+  const saleFn = fin?.sale;
+  const schedule = (fin?.installments || []) as any[];
+  const unitPrice = saleFn?.salePrice != null ? Number(saleFn.salePrice) : Number(lot?.price || saleFn?.salePrice || 0);
+  const aheadPayment = Number(saleFn?.valorCuota || (schedule[0]?.amount || 0));
+  const closed = schedule.filter((x) => x.status === 'pagado').length;
+  const firstDue = schedule[0]?.dueDate || null;
+  const remaining = Math.max(0, unitPrice - amountPaid);
+  const donePct = unitPrice > 0 ? Math.min(100, Math.round((amountPaid / unitPrice) * 100)) : 0;
 
   if (!lotId) return null;
   return (
@@ -58,6 +75,49 @@ export default function LotDetailModal({ lotId, onClose, onChanged }: {
               </div>
             </div>
           </div>
+          {(amountPaid > 0 || schedule.length > 0 || saleFn) && (
+            <div className="border rounded-2xl p-4" style={{ borderColor: '#e5e7eb' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-sm text-slate-800">Financiamiento del lote</h4>
+                <span className="badge" style={{ background: donePct >= 100 ? '#D1FAE5' : '#FEF3C7', color: donePct >= 100 ? '#065F46' : '#92400E' }}>{donePct >= 100 ? 'Saldado ✓' : donePct + '%'}</span>
+              </div>
+              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden mb-4">
+                <div className="h-full" style={{ width: donePct + '%', background: statusColor }} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div className="bg-canvas rounded-xl p-3">
+                  <div className="label">Valor del lote</div><b>{formatMoney(unitPrice)}</b>
+                </div>
+                <div className="bg-canvas rounded-xl p-3">
+                  <div className="label">Total abonado</div><b className="text-emerald-600">{formatMoney(amountPaid)}</b>
+                </div>
+                <div className="bg-canvas rounded-xl p-3">
+                  <div className="label">Saldo por pagar</div><b className="text-brand-700">{formatMoney(remaining)}</b>
+                </div>
+              </div>
+              {(schedule.length > 0 || aheadPayment > 0) && (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="badge bg-slate-100 text-slate-600">Cuota: {formatMoney(aheadPayment)}</span>
+                  <span className="badge bg-slate-100 text-slate-600">Cuotas: {schedule.length}</span>
+                  <span className="badge bg-emerald-50 text-emerald-700">Pagadas: {closed}</span>
+                  <span className="badge bg-amber-50 text-amber-700">Pendientes: {Math.max(0, schedule.length - closed)}</span>
+                  {firstDue && <span className="badge bg-slate-100 text-slate-600">Primera cuota: {formatDate(firstDue)}</span>}
+                </div>
+              )}
+              {schedule.length > 0 && (
+                <div className="mt-3 space-y-1 max-h-48 overflow-auto pr-1">
+                  {schedule.map((q) => (
+                    <div key={q.id ?? q.installmentNo} className="flex items-center justify-between text-xs py-1 border-b border-slate-50">
+                      <span className="text-slate-500">Cuota {q.installmentNo} · vence {formatDate(q.dueDate)}</span>
+                      <b className={q.status === 'pagado' ? 'text-emerald-600' : 'text-slate-700'}>{formatMoney(q.amount)}</b>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {lot?.clientName && <p className="text-xs text-slate-400 mt-3">Comprador asignado: {lot.clientName}</p>}
+            </div>
+          )}
+
           <div className="border-t pt-4">
             <h4 className="font-semibold text-sm text-slate-700 mb-2">Registrar pago</h4>
             <div className="flex gap-2 items-end flex-wrap">

@@ -109,23 +109,28 @@ export default function InteractivePlan({
             );
           })}
           {lots.map((lot) => {
-            const color = LOT_STATUS_COLOR[lot.status];
+            const sold = lot.sellingStage === 'vendido' || lot.status === 'vendido';
+            const locked = lot.sellingStage === 'separado' && !sold;
+            const color = sold ? '#E30620' : locked ? '#F2B94B' : LOT_STATUS_COLOR[lot.status];
             const sel = selectedLotId === lot.id;
             const dim = highlightBlockId != null && lot.blockId !== highlightBlockId;
             return (
               <g key={`l-${lot.id}`} opacity={dim ? 0.15 : 1}>
                 <polygon
                   points={pointsToString(lot.points)}
-                  fill={color} fillOpacity={0.6}
-                  stroke={sel ? '#171717' : color}
-                  strokeWidth={sel ? 3 : 1.4}
+                  fill={color} fillOpacity={locked ? 0.88 : sold ? 0.72 : 0.6}
+                  stroke={locked ? '#171717' : (sold ? '#000' : color)}
+                  strokeWidth={locked || sold ? 2.4 : sel ? 3 : 1.4}
                   style={{ cursor: interactive ? 'pointer' : 'default' }}
                   onMouseEnter={(e) => { setTooltip({ lot, x: lot.points[0].x, y: lot.points[0].y }); ((e.currentTarget) as any).style.fillOpacity = '0.85'; }}
                   onMouseLeave={(e) => { setTooltip(null); ((e.currentTarget) as any).style.fillOpacity = '0.6'; }}
                   onClick={(e) => { e.stopPropagation(); if (interactive && onLotClick) onLotClick(lot); }}
                 />
                 {(() => { const c = centroid(lot.points); return (
-                  <text x={c.x} y={c.y + 4} fontSize="12" fontWeight="600" textAnchor="middle" fill="#0f172a" style={{ pointerEvents: 'none' }}>{lot.code}</text>
+                  <g style={{ pointerEvents: 'none' }}>
+                    <text x={c.x} y={c.y - 6} fontSize="14" textAnchor="middle">{(locked || sold) ? (locked ? '🔒' : '✓') : ''}</text>
+                    <text x={c.x} y={c.y + 4} fontSize="12" fontWeight="600" textAnchor="middle" fill="#0f172a">{lot.code}</text>
+                  </g>
                 ); })()}
               </g>
             );

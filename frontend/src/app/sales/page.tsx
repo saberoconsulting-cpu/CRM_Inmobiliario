@@ -50,6 +50,7 @@ export default function SalesPage() {
 
   async function registrar() {
     if (!lotId) return toast('Selecciona un lote', 'err');
+    if (!clientId) return toast('Selecciona el cliente que adquiere/lote', 'err');
     if (!agentId) return toast('Selecciona el agente', 'err');
     if (!salePrice) return toast('Ingresa el precio de venta', 'err');
     try {
@@ -153,7 +154,7 @@ export default function SalesPage() {
               <Field label="Lote *"><select className="input" value={lotId} onChange={(e) => setLotId(Number(e.target.value))}><option value={0}>Selecciona…</option>{lots.filter((l: any) => l.status !== 'vendido').map((l: any) => <option key={l.id} value={l.id}>Lote {l.code} — {formatMoney(l.price)}</option>)}</select></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Cliente"><select className="input" value={clientId} onChange={(e) => setClientId(Number(e.target.value))}><option value={0}>— Sin asignar —</option>{clients.map((c: any) => <option key={c.id} value={c.id}>{c.full_name}</option>)}</select></Field>
+              <Field label="Cliente"><select className="input" value={clientId} onChange={(e) => setClientId(Number(e.target.value))}><option value={0}>— Sin asignar —</option>{clients.map((c: any) => <option key={c.id} value={c.id}>{(c.fullName || c.full_name || '— Sin nombre —')}</option>)}</select></Field>
               <Field label="Agente *"><select className="input" value={agentId} onChange={(e) => setAgentId(Number(e.target.value))}><option value={0}>Selecciona…</option>{agents.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">

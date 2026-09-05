@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { clearSession, getSessionUser } from '@/lib/api';
+import { clearSession, getSessionUser, api, getToken } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 import { User, UserRole } from '@/lib/types';
 
 // Navegación lateral según rol
@@ -31,12 +32,37 @@ export default function Layout({ children, title }: { children: ReactNode; title
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
+  const [pendingApp, setPendingApp] = useState<{ count: number; rows: any[] }>({ count: 0, rows: [] });
+  const [bellOpen, setBellOpen] = useState(false);
 
   useEffect(() => {
     const u = getSessionUser();
     if (!u) { router.push('/login'); return; }
     setUser(u);
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const isAdmin = user.role === 'superadmin' || user.role === 'admin';
+    const refresh = async () => {
+      if (!isAdmin) return;
+      try {
+        const rows: any[] = await api.get<any[]>('/sales/pending');
+        const pending = (rows || []).filter((r: any) => (r.approvalStatus || r.status || 'pendiente') === 'pendiente');
+        setPendingApp({ count: pending.length, rows: pending });
+      } catch { /* sin endpoint / sesión */ }
+    };
+    refresh();
+    const token = getToken();
+    if (token && isAdmin) {
+      const s = getSocket(token);
+      const evs = ['sale.created', 'lot.updated', 'approval.created'];
+      const listener = () => { refresh(); setBellOpen(false); };
+      evs.forEach((ev) => s.on(ev as any, listener as any));
+      return () => { evs.forEach((ev) => s.off(ev as any, listener as any)); };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   if (!user) return null;
 
@@ -68,6 +94,9 @@ export default function Layout({ children, title }: { children: ReactNode; title
                     className={`w-full flex items-center gap-3 rounded-lg px-3 text-sm transition-colors ${active ? 'bg-[#E30620] text-white' : 'text-[#374151] hover:bg-[#F3F4F6]'}`}
                     style={{ height: 38, fontWeight: active ? 600 : 500 }}>
                     <span style={{ fontSize: 16 }}>{n.icon}</span>{n.label}
+                    {n.href === '/sales' && pendingApp.count > 0 && (
+                      <span className="ml-auto grid place-items-center min-w-5 h-5 px-1 rounded-full text-[10px] font-bold text-white" style={{ background: '#E30620' }}>{pendingApp.count}</span>
+                    )}
                   </button>
                 </li>
               );
@@ -113,7 +142,40 @@ export default function Layout({ children, title }: { children: ReactNode; title
               <span className="w-1.5 h-1.5 rounded-full bg-[#E30620]" /> Acceso de administración
             </span>
           )}
-          <button className="p-1 text-[#6B7280] hover:text-[#171717]" aria-label="Notificaciones"><FiBell style={{ fontSize: 17 }} /></button>
+          <div className="relative">
+            <button className="relative p-1 text-[#6B7280] hover:text-[#171717]" aria-label="Notificaciones" onClick={() => setBellOpen((v) => !v)}>
+              <FiBell style={{ fontSize: 17 }} />
+              {(canManage && pendingApp.count > 0) && (
+                <span className="absolute -right-0.5 -top-0.5 grid place-items-center min-w-4 h-4 px-1 rounded-full text-[10px] font-bold text-white" style={{ background: '#E30620' }}>{pendingApp.count}</span>
+              )}
+            </button>
+            {bellOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setBellOpen(false)} />
+                <div className="absolute right-0 top-11 z-50 w-80 max-h-[70vh] overflow-auto rounded-2xl bg-white shadow-2xl border" style={{ borderColor: '#EDEEF0' }}>
+                  <div className="px-4 py-3 border-b flex justify-between items-center" style={{ borderColor: '#F0F1F3' }}>
+                    <span className="text-sm font-semibold">Separaciones por aprobar</span>
+                    <span className="badge bg-softred text-[#E30620]">{pendingApp.count}</span>
+                  </div>
+                  <div className="divide-y">
+                    {pendingApp.rows.slice(0, 15).map((s) => (
+                      <button key={s.id} onClick={() => { setBellOpen(false); router.push('/sales'); }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between gap-3">
+                        <span className="text-sm">Lote {s.lotCode ? s.lotCode : `#${s.lotId ?? '—'}`}</span>
+                        <span className="badge bg-amber-50 text-amber-700 text-[11px]">Pendiente</span>
+                      </button>
+                    ))}
+                  </div>
+                  {pendingApp.rows.length === 0 && <p className="px-4 py-8 text-sm text-center text-slate-400">Sin separaciones pendientes 🎉</p>}
+                  {pendingApp.rows.length > 0 && (
+                    <div className="px-3 py-2.5 border-t" style={{ borderColor: '#F0F1F3' }}>
+                      <button className="btn-primary w-full justify-center" onClick={() => { setBellOpen(false); router.push('/sales'); }}>Ir a revisar y aprobar</button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto p-5 md:p-6 bg-canvas">{children}</main>
       </div>

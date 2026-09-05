@@ -41,6 +41,11 @@ export class SalesController {
     });
   }
 
+  @Get('by-lot/:lotId')
+  byLot(@Param('lotId', ParseIntPipe) lotId: number) {
+    return this.salesService.getByLot(lotId);
+  }
+
   @Get('pending')
   @Roles(UserRole.SUPERADMIN, UserRole.ADMIN)
   pending() {

@@ -115,6 +115,7 @@ export interface Lot {
   areaM2: number;
   price: number;
   status: LotStatus;
+  sellingStage?: 'disponible' | 'separado' | 'aprobado' | 'vendido' | 'cancelado';
   clientId?: number | null;
   agentId?: number | null;
   agentName?: string | null;

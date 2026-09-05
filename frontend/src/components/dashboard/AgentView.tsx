@@ -23,7 +23,7 @@ export default function AgentView({ d }: { d: AgentDashboard | null }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="card"><h3 className="font-semibold mb-2">Mis leads ({d.leads.length})</h3>
           <ul className="divide-y text-sm">{d.leads.map((c:any)=>(
-            <li key={c.id} className="py-2 flex justify-between"><span className="text-slate-700">{c.full_name}</span><span className="badge bg-slate-100 text-slate-600 capitalize">{c.pipeline_status}</span></li>))}
+            <li key={c.id} className="py-2 flex justify-between"><span className="text-slate-700">{(c as any).fullName || c.full_name || '—'}</span><span className="badge bg-slate-100 text-slate-600 capitalize">{c.pipeline_status}</span></li>))}
           {!d.leads.length && <li className="text-slate-400 py-2">Sin leads asignados</li>}</ul></div>
         <div className="card"><h3 className="font-semibold mb-2">Próximas cuotas ({d.upcoming.length})</h3>
           <ul className="divide-y text-sm">{d.upcoming.map((p:any)=>(

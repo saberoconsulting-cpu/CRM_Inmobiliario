@@ -43,7 +43,7 @@ export class LotsService {
         'l.id', 'l.projectId', 'l.planId', 'l.blockId', 'l.code',
         'l.areaM2', 'l.price', 'l.status', 'l.clientId', 'l.agentId',
       ])
-      .addSelect(['u.name AS agentName', 'c.full_name AS clientName']);
+      .addSelect(['u.name AS agentName', 'c.full_name AS clientName', 'l.selling_stage AS sellingStage']);
 
     if (filters.projectId) qb.andWhere('l.project_id = :projectId', { projectId: filters.projectId });
     if (filters.blockId) qb.andWhere('l.block_id = :blockId', { blockId: filters.blockId });
@@ -67,6 +67,7 @@ export class LotsService {
       areaM2: Number(r.l_area_m2),
       price: Number(r.l_price),
       status: r.l_status,
+      sellingStage: r.sellingStage || undefined,
       clientId: r.l_client_id ? Number(r.l_client_id) : null,
       agentId: r.l_agent_id ? Number(r.l_agent_id) : null,
       agentName: r.agentName || null,

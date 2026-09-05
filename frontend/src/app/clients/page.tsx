@@ -89,7 +89,7 @@ export default function ClientsPage() {
                   const pc = PCOLOR[c.pipeline_status] || ['#F3F4F6', '#374151'];
                   return (
                     <tr key={c.id}>
-                      <td className="td-base font-medium">{c.full_name}</td>
+                      <td className="td-base font-medium">{(c as any).fullName || c.full_name}</td>
                       <td className="td-base">{c.phone || c.email || '—'}</td>
                       <td className="td-base capitalize">{c.source || 'web'}</td>
                       <td className="td-base">
