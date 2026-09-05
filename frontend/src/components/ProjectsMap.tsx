@@ -1,129 +1,95 @@
 'use client';
-// Mapa interactivo de proyectos (MapLibre + OpenStreetMap, sin API key)
+// Mapa estable con MapLibre + tiles OpenStreetMap (style similar a Google Maps).
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { Project } from '@/lib/types';
 
-interface Props {
-  projects: Project[];
-  onOpen: (id: number) => void;
-}
+interface Props { projects: Project[]; onOpen: (id: number) => void; }
 
-const DEFAULT_CENTER: [number, number] = [-77.0369, -12.0464]; // Lima
-
-const DEMO = 'https://demotiles.maplibre.org/style.json';
+const TILE = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MA_STYLE: any = {
+  version: 8,
+  sources: {
+    osm: { type: 'raster', tiles: [TILE], tileSize: 256, attribution: '© OpenStreetMap' }
+  },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#f2efe9' } },
+    { id: 'osm', type: 'raster', source: 'osm', minzoom: 0, maxzoom: 19 }
+  ]
+};
 
 export default function ProjectsMap({ projects, onOpen }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-
-  const renderMarkers = (m: maplibregl.Map) => {
-    markersRef.current.forEach((mk) => mk.remove());
-    markersRef.current = [];
-
-    const geo = (projects || []).filter((p) => Number(p.latitude) && Number(p.longitude));
-    const missing = (projects || []).filter((p) => !(Number(p.latitude) && Number(p.longitude)) && p.location);
-
-    if (!geo.length && !missing.length) return;
-
-    if (missing.length) {
-      // Respaldo: dirección escrita -> geocode al vuelo (no modifica BD)
-      missing.forEach((p) => {
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=${encodeURIComponent(p.location || '')}`, { headers: { 'User-Agent': 'CRM-Inmobiliario/1.0 (web)' } })
-          .then((r) => r.json())
-          .then((list) => {
-            const hit = Array.isArray(list) && list[0];
-            if (!hit || !map.current) return;
-
-            const el = document.createElement('div');
-            el.style.cssText = 'width:32px;height:32px;border-radius:50%;background:#F59E0B;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer';
-            el.textContent = String(p.name?.charAt(0) || '').toUpperCase();
-            const mk = new maplibregl.Marker({ element: el })
-              .setLngLat([Number(hit.lon), Number(hit.lat)])
-              .setPopup(new maplibregl.Popup({ offset: 30 }).setHTML(`<b>${p.name}</b><br/>${p.location}<br/><a href="/projects/${p.id}" style="color:#E30620">Ver</a>`))
-              .addTo(map.current!);
-            markersRef.current.push(mk);
-            map.current!.flyTo({ center: [Number(hit.lon), Number(hit.lat)], zoom: 12 });
-          })
-          .catch(() => {});
-      });
-    }
-
-    const content = (p: Project) => `
-      <div style="min-width:220px; font-family:inherit">
-        ${p.coverImageUrl ? `<img src="${p.coverImageUrl}" style="width:100%;height:96px;object-fit:cover;border-radius:10px" />` : '<div style="height:96px;background:#f3f4f6;border-radius:10px"></div>'}
-        <div style="font-size:15px;font-weight:700;color:#171717;margin-top:8px">${p.name}</div>
-        <div style="font-size:12px;color:#6b7280;margin:2px 0 8px">${p.location || ''}</div>
-        <a href="/projects/${p.id}" style="display:inline-block;background:#E30620;color:#fff;padding:6px 12px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">Ver proyecto y plano</a>
-      </div>`;
-
-    geo.forEach((p) => {
-      const el = document.createElement('div');
-      el.style.cssText = 'width:34px;height:34px;border-radius:50%;background:#E30620;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;cursor:pointer;z-index:2';
-      el.textContent = String(p.name?.charAt(0) || 'P').toUpperCase();
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([Number(p.longitude), Number(p.latitude)])
-        .setPopup(new maplibregl.Popup({ offset: 30, closeButton: false }).setHTML(content(p)))
-        .addTo(m);
-      const popup = marker.getPopup();
-      el.onclick = () => popup?.addTo(m);
-      markersRef.current.push(marker);
-    });
-
-    if (geo.length > 1) {
-      const bounds = new maplibregl.LngLatBounds();
-      geo.forEach((p) => bounds.extend([Number(p.longitude), Number(p.latitude)]));
-      m.fitBounds(bounds, { padding: 64, maxZoom: 12 });
-    } else if (geo.length === 1) {
-      m.flyTo({ center: [Number(geo[0].longitude), Number(geo[0].latitude)], zoom: 13 });
-    }
-  };
+  const host = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markers = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
-    if (!ref.current || map.current) return;
-    const m = new maplibregl.Map({
-      container: ref.current,
-      style: DEMO,
-      center: DEFAULT_CENTER,
-      zoom: 5,
-    });
-    m.dragPan && m.setMaxZoom(18);
-    m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
-    m.on('load', () => { m.resize(); renderMarkers(m); });
-    map.current = m;
-    // Asegurar que los marcadores se dibujen aunque el estilo/tiles tarde en emitir "load".
-    setTimeout(() => renderMarkers(m), 800);
-    return () => { map.current?.remove(); map.current = null; markersRef.current = []; };
+    if (!host.current || mapRef.current) return;
+    try {
+      const m = new maplibregl.Map({
+        container: host.current,
+        style: MA_STYLE,
+        center: [-77.0369, -12.0464],
+        zoom: 5
+      });
+      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+      mapRef.current = m;
+      m.on('load', () => { try { m.resize(); } catch {} draw(); });
+      setTimeout(() => { try { mapRef.current?.resize(); draw(); } catch {} }, 900);
+    } catch { /* tolerante */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const m = map.current;
+  useEffect(() => { draw(); /* eslint-disable-next-line */ }, [projects]);
+
+  function draw() {
+    const m = mapRef.current;
     if (!m) return;
-    if (m.loaded()) renderMarkers(m);
-    else m.once('load', () => renderMarkers(m));
-  }, [projects]);
+    markers.current.forEach((x) => { try { x.remove(); } catch {} });
+    markers.current = [];
+    const placed = (projects || []).filter((p) => Number(p.latitude) && Number(p.longitude));
+    if (!placed.length) return;
+
+    try {
+      if (placed.length === 1) {
+        m.flyTo({ center: [Number(placed[0].longitude), Number(placed[0].latitude)], zoom: 15 });
+      } else {
+        const bounds = new (maplibregl as any).LngLatBounds();
+        placed.forEach((p) => bounds.extend([Number(p.longitude), Number(p.latitude)]));
+        m.fitBounds(bounds, { padding: 60, maxZoom: 15 });
+      }
+    } catch {}
+
+    placed.forEach((p) => {
+      const el = document.createElement('div');
+      el.style.cssText = 'display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#E30620;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4);cursor:pointer';
+      const inner = document.createElement('span');
+      inner.style.cssText = 'transform:rotate(45deg);font-size:14px;color:#fff;font-weight:800';
+      inner.textContent = (p.name || 'P').charAt(0).toUpperCase();
+      el.appendChild(inner);
+      const pop = new maplibregl.Popup({ offset: 15, closeButton: true }).setHTML(
+        `${p.coverImageUrl ? `<img src="${p.coverImageUrl}" style="width:150px;height:70px;object-fit:cover;border-radius:8px"/>` : ''}<div style="font-weight:800">${p.name}</div><div style="color:#777;font-size:12px">${p.location || ''}</div><a href="/projects/${p.id}" style="background:#E30620;color:#fff;padding:5px 10px;border-radius:6px;font-size:12px">Ver proyecto →</a>`
+      );
+      const mk = new maplibregl.Marker({ element: el }).setLngLat([Number(p.longitude), Number(p.latitude)]).setPopup(pop).addTo(m);
+      markers.current.push(mk);
+      const _ = onOpen; void _; void p;
+    });
+  }
 
   return (
-    <div className="flex w-full h-full min-h-[420px] gap-2">
-      {/* Lista lateral: proyectos siempre visibles para moverse/abrir */}
-      <div className="w-56 shrink-0 rounded-xl border bg-white p-2 overflow-y-auto space-y-2" style={{ borderColor: '#E5E7EB' }}>
-        {projects.length === 0 && <p className="text-xs text-slate-400 p-1">Sin proyectos</p>}
+    <div className="flex h-full min-h-[440px] gap-2">
+      <div className="w-52 shrink-0 rounded-xl border bg-white p-2">
+        <p className="px-1 pb-2 text-sm font-bold">Proyectos</p>
+        {projects.length === 0 && <p className="px-1 text-xs text-slate-400">Sin proyectos</p>}
         {projects.map((p) => (
-          <button key={p.id} onClick={() => onOpen(p.id)} className="w-full text-left rounded-lg p-2 hover:bg-slate-50 border" style={{ borderColor: '#F0F1F3' }}>
-            <div className="text-sm font-semibold truncate">{p.name}</div>
-            <div className="text-[11px] text-slate-500 truncate">{p.location || 'sin dirección'}</div>
-            <div className="text-[10px] mt-1" style={{ color: Number(p.latitude) && Number(p.longitude) ? '#067a46' : '#b45309' }}>{Number(p.latitude) ? '✓ ubicación' : 'pendiente ubicación'}</div>
+          <button key={p.id} onClick={() => onOpen(p.id)} className="mb-1 block w-full rounded-lg border px-2 py-2 text-left hover:bg-slate-50" style={{ borderColor: '#e5e7eb' }}>
+            <div className="truncate font-semibold">{p.name}</div>
+            <div className="truncate text-[11px] text-slate-500">{p.location || ''}</div>
           </button>
         ))}
       </div>
-      {/* Ventana de mapa */}
-      <div className="relative flex-1 min-w-0 rounded-xl overflow-hidden border" style={{ borderColor: '#E5E7EB' }}>
-        <div ref={ref} className="absolute inset-0" />
-        {projects.length > 0 && !projects.some((p) => Number(p.latitude)) && (
-          <p className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/70 text-white text-[11px] px-3 py-1">Los proyectos sin lat/long se listan a la izquierda; edítalos para ubicarlos en el mapa.</p>
-        )}
+      <div className="relative min-w-0 flex-1 overflow-hidden rounded-xl border" style={{ borderColor: '#e5e7eb' }}>
+        <div ref={host} className="absolute inset-0" />
       </div>
     </div>
   );

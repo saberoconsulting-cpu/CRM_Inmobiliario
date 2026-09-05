@@ -60,16 +60,66 @@ export function StatCard({ label, value, color = '#171717', delta, deltaUp, date
 export function Modal({ open, onClose, title, children, width = 'max-w-lg' }: {
   open: boolean; onClose: () => void; title: string; children: ReactNode; width?: string;
 }) {
+  const [pos, setPos] = useReactState<{ x: number; y: number }>({ x: -1, y: -1 });
+  const [min, setMin] = useReactState(false);
   if (!open) return null;
+
+  const isCenter = pos.x < 0;
+  const winW = width.includes('max-w-') ? 820 : 600;
+
+  const barRow = (
+    <div
+      className={`flex items-center justify-between select-none cursor-move text-white ${min ? 'rounded-lg' : 'rounded-t-lg'}`}
+      style={{ height: 40, padding: '0 6px 0 16px', background: 'linear-gradient(180deg,#1f2937,#0f172a)' }}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const sx = e.clientX, sy = e.clientY;
+        const el = (e.currentTarget.parentElement || e.currentTarget) as HTMLElement;
+        const base = el.getBoundingClientRect();
+        const sX = pos.x >= 0 ? pos.x : base.left;
+        const sY = pos.y >= 0 ? pos.y : base.top;
+        const mv = (ev: PointerEvent) => setPos({ x: Math.max(0, sX + ev.clientX - sx), y: Math.max(0, sY + ev.clientY - sy) });
+        const up = () => { window.removeEventListener('pointermove', mv as any); window.removeEventListener('pointerup', up); };
+        window.addEventListener('pointermove', mv as any);
+        window.addEventListener('pointerup', up);
+      }}
+    >
+      <span className="truncate text-sm font-semibold">{title}</span>
+      <div className="flex items-center gap-1.5">
+        <button type="button" onClick={() => setMin(true)} aria-label="Minimizar"
+          className="grid place-items-center rounded-md" style={{ width: 30, height: 26, background: 'rgba(255,255,255,.14)' }}>
+          <svg width="12" height="2"><path d="M1 1h10" stroke="white" strokeWidth="1.6" /></svg>
+        </button>
+        <button type="button" onClick={onClose} aria-label="Cerrar"
+          className="grid place-items-center rounded-md hover:bg-red-500" style={{ width: 30, height: 26, background: 'rgba(255,255,255,.14)' }}>
+          <svg width="11" height="11"><path d="M1 1l9 9M10 1l-9 9" stroke="white" strokeWidth="1.6" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+
+  if (min) {
+    // Minimizado: pequeña pestaña anclada abajo-izquierda (como barra de tareas)
+    return (
+      <div className="fixed bottom-2 left-2 z-[80] w-max cursor-pointer overflow-hidden rounded-lg shadow-xl" onClick={() => setMin(false)}>
+        {barRow}
+      </div>
+    );
+  }
+
+  const spread = isCenter
+    ? { width: winW, maxWidth: '94vw' }
+    : { width: winW, maxWidth: '96vw', left: pos.x, top: pos.y };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-2xl w-full ${width} max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <h3 className="font-semibold text-slate-800">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">✕</button>
-        </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className={`absolute flex flex-col overflow-hidden rounded-lg bg-white shadow-2xl ${isCenter ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : ''}`}
+        style={spread}
+      >
+        {barRow}
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );

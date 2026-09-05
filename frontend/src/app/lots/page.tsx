@@ -4,7 +4,6 @@ import Layout from '@/components/Layout';
 import { Toaster, toast, StatusBadge, EmptyState } from '@/components/ui';
 import { api } from '@/lib/api';
 import LotDetailModal from '@/components/LotDetailModal';
-import FloatingWindow from '@/components/FloatingWindow';
 import { PaginationBar } from '@/components/PaginationBar';
 import { Lot, formatMoney, LOT_STATUS_LABEL, LOT_STATUS_COLOR } from '@/lib/types';
 
@@ -15,8 +14,6 @@ export default function LotesPage() {
   const [proyectos, setProyectos] = useState<any[]>([]);
   const [project, setProject] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
-  const [windows, setWindows] = useState<{ id: number; lotId: number; x: number; y: number }[]>([]);
-  const [topId, setTopId] = useState<number>(0);
   const [buscar, setBuscar] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -40,47 +37,11 @@ export default function LotesPage() {
   useEffect(() => { api.get<any>('/projects').then((d) => setProyectos(Array.isArray(d) ? d : ((d as any)?.items || []))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [statusFilter, search, project]);
 
-  const openWindow = (lotId: number) => {
-    const existing = windows.find((w) => w.lotId === lotId);
-    if (existing) { setTopId(existing.id); return; }
-    const id = Date.now() % 100000 + Math.floor(Math.random() * 999);
-    const n = windows.length;
-    setWindows((p) => [...p, { id, lotId, x: 130 + (n % 6) * 44, y: 90 + (n % 5) * 42 }]);
-    setTopId(id);
-  };
-  const closeWindow = (id: number) => setWindows((p) => p.filter((w) => w.id !== id));
-  const moveWindow = (id: number, x: number, y: number) =>
-    setWindows((p) => p.map((w) => (w.id === id ? { ...w, x, y } : w)));
-
   return (
     <Layout title="Lotes">
       <Toaster />
       <LotDetailModal lotId={selected} onClose={() => setSelected(null)} onChanged={load} />
 
-      {windows.map((w) => {
-        const l = lots.find((x) => x.id === w.lotId);
-        return (
-          <FloatingWindow key={w.id}
-            title={l ? `Lote ${l.code} · ${LOT_STATUS_LABEL[l.status]}` : 'Lote'}
-            x={w.x} y={w.y} focused={topId === w.id}
-            setPos={(p) => moveWindow(w.id, p.x, p.y)}
-            onClose={() => closeWindow(w.id)}
-            bringToFront={() => setTopId(w.id)}>
-            {l && (
-              <div className="w-72">
-                <div className="text-sm"><div className="font-semibold text-base">{l.code}</div>
-                  <div>Precio: <b>{formatMoney(l.price)}</b></div>
-                  <div className="text-slate-500">Área: {l.areaM2} m²</div>
-                  <div className="mt-1"><span className="badge" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span></div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <button className="btn-primary flex-1 text-xs" onClick={() => setSelected(l.id)}>Abrir ficha completa</button>
-                </div>
-              </div>
-            )}
-          </FloatingWindow>
-        );
-      })}  
 
       <div className="card mb-4 flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-48"><label className="label">Buscar por código</label>
@@ -115,7 +76,7 @@ export default function LotesPage() {
                 <td className="td-base">{l.areaM2}</td>
                 <td className="td-base">{formatMoney(l.price)}</td>
                 <td className="td-base"><span className="badge" style={{backgroundColor:LOT_STATUS_COLOR[l.status]+'22', color:LOT_STATUS_COLOR[l.status]}}>{LOT_STATUS_LABEL[l.status]}</span></td>
-                <td className="td-base text-right"><button className="btn-secondary text-xs" onClick={() => openWindow(l.id)}>Ver ficha</button></td>
+                <td className="td-base text-right"><button className="btn-secondary text-xs" onClick={() => setSelected(l.id)}>Ver ficha</button></td>
               </tr>
             ))}
           </tbody>
