@@ -185,7 +185,7 @@ export default function ProfilePage() {
         {tab === 'stats' && (
           role === 'agent'
             ? <AgentView d={agi} />
-            : <GeneralView d={gen} />
+            : <GeneralView d={gen} compact />
         )}
         </div>
 

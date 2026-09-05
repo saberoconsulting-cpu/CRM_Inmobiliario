@@ -4,13 +4,28 @@ import { FormattedDashboard } from '@/lib/dboard';
 import { formatMoney } from '@/lib/types';
 import { DistribucionPie } from '@/components/charts/Charts';
 
-export default function GeneralView({ d }: { d: FormattedDashboard | null }) {
+export default function GeneralView({ d, compact = false }: { d: FormattedDashboard | null; compact?: boolean }) {
   if (!d) return <p className="text-slate-400">Sin datos</p>;
   const colors: Record<string,string> = { disponible:'#D1D5DB', reservado:'#F2B94B', adelanto:'#4B83C4', primera_cuota:'#8064A2', vendido:'#E30620' };
   // Rojo de marca + negro + grises + rojo claro derivados de la identidad
   const channelMap: any = { facebook:'#E30620', tiktok:'#171717', instagram:'#A90318', web:'#6B7280', referidos:'#FCB7C0' };
   const lotData = Object.keys(colors).map((k) => ({ name: k, value: d.lots[k] || 0 }));
   const label: Record<string,string> = { disponible:'Disponible',reservado:'Reservado',adelanto:'Con adelanto',primera_cuota:'Primera cuota',vendido:'Vendido' };
+
+  if (compact) {
+    return (
+      <div>
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+          <StatCard label="Leads del mes" value={d.cards.leadsMonth} />
+          <StatCard label="Ventas del mes" value={d.cards.salesMonth} />
+          <StatCard label="Ingresos" value={formatMoney(d.cards.income)} />
+          <StatCard label="Egresos" value={formatMoney(d.cards.expense)} />
+          <StatCard label="Utilidad" value={formatMoney(d.cards.profit)} />
+          <StatCard label="Lotes vendidos del periodo" value={d.lots.vendido || 0} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

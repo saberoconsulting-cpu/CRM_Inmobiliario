@@ -105,15 +105,15 @@ export default function LotesPage() {
                 </div>
                 <div>
                   {g.items.map((l) => (
-                    <div key={l.id} className="grid cursor-pointer items-center gap-x-4 gap-y-1 border-b px-4 py-2 hover:bg-slate-50 last:border-0 sm:grid-cols-[minmax(0,1fr)_70px_140px_130px_auto]" onClick={() => setSelected(l.id)} style={{ borderColor: '#F0F1F3' }}>
-                      <span className="min-w-0">
-                        <span className="block truncate font-semibold text-[15px] text-[#171717]">{l.code}</span>
-                        <span className="block truncate text-[11px]" style={{ color: '#9AA1AB' }}>{(proyectos.find((p: any) => Number(p.id) === Number(l.projectId)) as any)?.name || `Proyecto ${l.projectId}`}</span>
+                    <div key={l.id} className="grid items-center gap-x-4 gap-y-2 border-b px-4 py-2.5 hover:bg-slate-50 last:border-0 sm:grid-cols-[minmax(0,1fr)_64px_150px_130px_auto]" onClick={() => setSelected(l.id)} style={{ borderColor: '#F0F1F3', minHeight: 44 }}>
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate font-semibold text-[15px] leading-tight text-[#171717]">{l.code}</span>
+                        <span className="truncate text-[11px] leading-tight" style={{ color: '#9AA1AB' }}>{(proyectos.find((p: any) => Number(p.id) === Number(l.projectId)) as any)?.name || `Proyecto ${l.projectId}`}</span>
                       </span>
-                      <span className="text-right text-xs sm:text-left sm:order-none" style={{ color: '#6B7280' }}>{l.areaM2} m²</span>
-                      <span className="text-right font-semibold text-[#171717] sm:pr-2">{formatMoney(l.price)}</span>
-                      <span className="justify-self-end sm:w-auto"><span className="badge whitespace-nowrap" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span></span>
-                      <button className="btn-secondary !h-8 !px-3 text-xs whitespace-nowrap" onClick={(e) => { e.stopPropagation(); setSelected(l.id); }}>Ver ficha</button>
+                      <span className="text-xs tabular-nums" style={{ color: '#6B7280' }}>{l.areaM2} m²</span>
+                      <span className="truncate text-right font-semibold tabular-nums text-[#171717]">{formatMoney(l.price)}</span>
+                      <span className="justify-self-start sm:justify-self-center"><span className="badge whitespace-nowrap text-center" style={{ backgroundColor: LOT_STATUS_COLOR[l.status] + '22', color: LOT_STATUS_COLOR[l.status] }}>{LOT_STATUS_LABEL[l.status]}</span></span>
+                      <button className="btn-secondary !h-8 !px-3 text-xs whitespace-nowrap justify-self-end" onClick={(e) => { e.stopPropagation(); setSelected(l.id); }}>Ver ficha</button>
                     </div>
                   ))}
                 </div>
