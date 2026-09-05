@@ -1,5 +1,5 @@
 // Metadata no necesaria (dashboard). Layout global raíz.
-import '/globals.css';
+import './globals.css';
 
 export const metadata = {
   title: 'CRM Inmobiliario',
